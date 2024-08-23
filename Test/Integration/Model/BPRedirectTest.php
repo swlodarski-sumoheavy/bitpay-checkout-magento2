@@ -18,8 +18,6 @@ use Bitpay\BPCheckout\Model\Invoice;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\ActionFlag;
-use Magento\Framework\App\Response\RedirectInterface;
-use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
@@ -29,8 +27,7 @@ use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
 use Magento\Sales\Api\Data\OrderInterface;
-use Magento\Framework\App\ResponseFactory;
-use Magento\Framework\View\Result\PageFactory;
+use Magento\Framework\Controller\ResultFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
@@ -57,16 +54,6 @@ class BPRedirectTest extends TestCase
     private $checkoutSession;
 
     /**
-     * @var RedirectInterface $redirect
-     */
-    private $redirect;
-
-    /**
-     * @var ResponseInterface $response
-     */
-    private $response;
-
-    /**
      * @var OrderInterface $orderInterface
      */
     private $orderInterface;
@@ -80,11 +67,6 @@ class BPRedirectTest extends TestCase
      * @var TransactionRepository $transactionRepository
      */
     private $transactionRepository;
-
-    /**
-     * @var ResponseFactory $responseFactory
-     */
-    private $responseFactory;
 
     /**
      * @var Invoice|MockObject $invoice
@@ -112,9 +94,9 @@ class BPRedirectTest extends TestCase
     private $logger;
 
     /**
-     * @var PageFactory $resultPageFactory
+     * @var ResultFactory $resultFactory
      */
-    private $resultPageFactory;
+    private $resultFactory;
     /**
      * @var Client $client
      */
@@ -134,36 +116,30 @@ class BPRedirectTest extends TestCase
     {
         $this->objectManager =  Bootstrap::getObjectManager();
         $this->checkoutSession = $this->objectManager->get(Session::class);
-        $this->redirect = $this->objectManager->get(RedirectInterface::class);
-        $this->response = $this->objectManager->get(ResponseInterface::class);
         $this->orderInterface = $this->objectManager->get(OrderInterface::class);
         $this->config = $this->objectManager->get(Config::class);
         $this->transactionRepository = $this->objectManager->get(TransactionRepository::class);
-        $this->responseFactory = $this->objectManager->get(ResponseFactory::class);
         $this->invoice = $this->getMockBuilder(Invoice::class)->disableOriginalConstructor()->getMock();
         $this->messageManager = $this->objectManager->get(Manager::class);
         $this->registry = $this->objectManager->get(Registry::class);
         $this->url = $this->objectManager->get(UrlInterface::class);
         $this->logger = $this->objectManager->get(Logger::class);
-        $this->resultPageFactory = $this->objectManager->get(PageFactory::class);
+        $this->resultFactory = $this->objectManager->get(ResultFactory::class);
         $this->client = $this->getMockBuilder(Client::class)->disableOriginalConstructor()->getMock();
         $this->orderRepository = $this->objectManager->get(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->objectManager->get(BitpayInvoiceRepository::class);
 
         $this->bpRedirect = new BPRedirect(
             $this->checkoutSession,
-            $this->redirect,
-            $this->response,
             $this->orderInterface,
             $this->config,
             $this->transactionRepository,
-            $this->responseFactory,
             $this->invoice,
             $this->messageManager,
             $this->registry,
             $this->url,
             $this->logger,
-            $this->resultPageFactory,
+            $this->resultFactory,
             $this->client,
             $this->orderRepository,
             $this->bitpayInvoiceRepository
