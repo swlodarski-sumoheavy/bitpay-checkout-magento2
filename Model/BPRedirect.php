@@ -3,24 +3,15 @@ namespace Bitpay\BPCheckout\Model;
 
 use Bitpay\BPCheckout\Logger\Logger;
 use Magento\Checkout\Model\Session;
-use Magento\Framework\App\Action\Action;
-use Magento\Framework\App\ActionFlag;
-use Magento\Framework\App\Response\RedirectInterface;
-use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\DataObject;
-use Magento\Framework\Event\Observer;
-use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Message\Manager;
 use Magento\Framework\Registry;
-use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
-use Magento\Framework\View\Result\Page;
 use Magento\Sales\Api\Data\OrderInterface;
-use Magento\Framework\App\ResponseFactory;
-use Magento\Framework\View\Result\PageFactory;
-use Magento\Sales\Model\Order;
+use Magento\Framework\Controller\ResultFactory;
+use Magento\Framework\Controller\ResultInterface;
 use Magento\Sales\Model\OrderRepository;
 
 /**
@@ -31,36 +22,30 @@ use Magento\Sales\Model\OrderRepository;
 class BPRedirect
 {
     protected Session $checkoutSession;
-    protected RedirectInterface $redirect;
-    protected ResponseInterface $response;
     protected OrderInterface $orderInterface;
     protected TransactionRepository $transactionRepository;
     protected Config $config;
-    protected ResponseFactory $responseFactory;
     protected Invoice $invoice;
     protected Manager $messageManager;
     protected Registry $registry;
     protected UrlInterface $url;
     protected Logger $logger;
-    protected PageFactory $resultPageFactory;
+    protected ResultFactory $resultFactory;
     protected Client $client;
     protected OrderRepository $orderRepository;
     protected BitpayInvoiceRepository $bitpayInvoiceRepository;
 
     /**
      * @param Session $checkoutSession
-     * @param RedirectInterface $redirect
-     * @param ResponseInterface $response
      * @param OrderInterface $orderInterface
      * @param \Bitpay\BPCheckout\Model\Config $config
      * @param \Bitpay\BPCheckout\Model\TransactionRepository $transactionRepository
-     * @param ResponseFactory $responseFactory
      * @param \Bitpay\BPCheckout\Model\Invoice $invoice
      * @param Manager $messageManager
      * @param Registry $registry
      * @param UrlInterface $url
      * @param Logger $logger
-     * @param PageFactory $resultPageFactory
+     * @param ResultFactory $resultFactory
      * @param Client $client
      * @param OrderRepository $orderRepository
      * @param BitpayInvoiceRepository $bitpayInvoiceRepository
@@ -68,35 +53,29 @@ class BPRedirect
      */
     public function __construct(
         Session $checkoutSession,
-        RedirectInterface $redirect,
-        ResponseInterface $response,
         OrderInterface $orderInterface,
         Config $config,
         TransactionRepository $transactionRepository,
-        ResponseFactory $responseFactory,
         Invoice $invoice,
         Manager $messageManager,
         Registry $registry,
         UrlInterface $url,
         Logger $logger,
-        PageFactory $resultPageFactory,
+        ResultFactory $resultFactory,
         Client $client,
         OrderRepository $orderRepository,
         BitpayInvoiceRepository $bitpayInvoiceRepository
     ) {
         $this->checkoutSession = $checkoutSession;
-        $this->redirect = $redirect;
-        $this->response = $response;
         $this->orderInterface = $orderInterface;
         $this->config = $config;
         $this->transactionRepository = $transactionRepository;
-        $this->responseFactory = $responseFactory;
         $this->invoice = $invoice;
         $this->messageManager = $messageManager;
         $this->registry = $registry;
         $this->url = $url;
         $this->logger = $logger;
-        $this->resultPageFactory = $resultPageFactory;
+        $this->resultFactory = $resultFactory;
         $this->client = $client;
         $this->orderRepository = $orderRepository;
         $this->bitpayInvoiceRepository = $bitpayInvoiceRepository;
@@ -105,23 +84,29 @@ class BPRedirect
     /**
      * Create bitpay invoice after order creation during redirect to success page
      *
-     * @return Page|void
+     * @return ResultInterface
      * @throws LocalizedException
      * @throws NoSuchEntityException|\Exception
      */
-    public function execute()
+    public function execute(): ResultInterface
     {
         $orderId = $this->checkoutSession->getData('last_order_id');
         if (!$orderId) {
-            $this->response->setRedirect($this->url->getUrl('checkout/cart'))->sendResponse();
-            return;
+            return $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT)
+                ->setUrl($this->url->getUrl('checkout/cart'));
         }
 
         $order = $this->orderInterface->load($orderId);
         $incrementId = $order->getIncrementId();
+        if (!$incrementId) {
+            return $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT)
+                ->setUrl($this->url->getUrl('checkout/cart'));
+        }
         $baseUrl = $this->config->getBaseUrl();
         if ($order->getPayment()->getMethodInstance()->getCode() !== Config::BITPAY_PAYMENT_METHOD_NAME) {
-            return $this->resultPageFactory->create();
+            return $this->resultFactory->create(
+                \Magento\Framework\Controller\ResultFactory::TYPE_PAGE
+            );
         }
 
         try {
@@ -142,29 +127,30 @@ class BPRedirect
                 $invoice->getAcceptanceWindow()
             );
             $this->transactionRepository->add($incrementId, $invoiceID, 'new');
+
+            switch ($modal) {
+                case true:
+                case 1:
+                    #set some info for guest checkout
+                    $this->setSessionCustomerData($billingAddressData, $order->getCustomerEmail(), $incrementId);
+
+                    $redirectUrl = $this->url->getUrl('bitpay-invoice', ['_query' => ['invoiceID' => $invoiceID, 'order_id' => $incrementId, 'm' => 1]]);
+
+                    return $this->resultFactory->create(
+                            \Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT
+                        )
+                        ->setUrl($redirectUrl);
+                case false:
+                default:
+                    return $this->resultFactory->create(
+                        \Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT
+                    )
+                    ->setUrl($invoice->getUrl());
+            }
         } catch (\Exception $exception) {
-            $this->deleteOrderAndRedirectToCart($exception, $order);
-
-            return;
+            return $this->deleteOrderAndRedirectToCart($exception, $order);
         } catch (\Error $error) {
-            $this->deleteOrderAndRedirectToCart($error, $order);
-
-            return;
-        }
-
-        switch ($modal) {
-            case true:
-            case 1:
-                #set some info for guest checkout
-                $this->setSessionCustomerData($billingAddressData, $order->getCustomerEmail(), $incrementId);
-                $RedirectUrl = $baseUrl . 'bitpay-invoice/?invoiceID=' . $invoiceID . '&order_id='
-                    . $incrementId . '&m=1';
-                $this->responseFactory->create()->setRedirect($RedirectUrl)->sendResponse();
-                break;
-            case false:
-            default:
-                $this->redirect->redirect($this->response, $invoice->getUrl());
-                break;
+            return $this->deleteOrderAndRedirectToCart($error, $order);
         }
     }
 
@@ -194,7 +180,7 @@ class BPRedirect
      * @return void
      * @throws \Exception
      */
-    private function setToPendingAndOverrideMagentoStatus(OrderInterface $order): Order
+    private function setToPendingAndOverrideMagentoStatus(OrderInterface $order): OrderInterface
     {
         $order->setState('new', true);
         $order_status = $this->config->getBPCheckoutOrderStatus();
@@ -246,13 +232,18 @@ class BPRedirect
      * @return void
      * @throws \Exception
      */
-    private function deleteOrderAndRedirectToCart($exception, OrderInterface $order): void
+    private function deleteOrderAndRedirectToCart($exception, OrderInterface $order): ResultInterface
     {
         $this->logger->error($exception->getMessage());
         $this->registry->register('isSecureArea', 'true');
         $order->delete();
         $this->registry->unregister('isSecureArea');
         $this->messageManager->addErrorMessage('We are unable to place your Order at this time');
-        $this->responseFactory->create()->setRedirect($this->url->getUrl('checkout/cart'))->sendResponse();
+
+        return $this->resultFactory->create(
+                \Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT
+            )
+            ->setUrl($this->url->getUrl('checkout/cart'));
+
     }
 }

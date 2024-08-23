@@ -12,26 +12,16 @@ use Bitpay\BPCheckout\Model\Invoice;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
 use Magento\Checkout\Model\Session;
-use Magento\Framework\App\Action\Action;
-use Magento\Framework\App\ActionFlag;
-use Magento\Framework\App\Response\RedirectInterface;
-use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\DataObject;
-use Magento\Framework\Event\Observer;
-use Magento\Framework\Event\ObserverInterface;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Magento\Framework\Message\Manager;
 use Magento\Framework\Registry;
-use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Sales\Api\Data\OrderInterface;
-use Magento\Framework\App\ResponseFactory;
-use Magento\Framework\View\Result\PageFactory;
+use \Magento\Framework\Controller\Result\Redirect;
+use Magento\Framework\Controller\ResultFactory;
 use Magento\Sales\Model\Order;
-use Magento\Sales\Api\Data\OrderPaymentInterface;
 use Magento\Payment\Model\MethodInterface;
-use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Model\OrderRepository;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -51,16 +41,6 @@ class BPRedirectTest extends TestCase
      * @var Seesion|MockObject $checkoutSession
      */
     private $checkoutSession;
-
-    /**
-     * @var RedirectInterface|MockObject $redirect
-     */
-    private $redirect;
-
-    /**
-     * @var \Magento\Framework\App\Response\Http|MockObject $response
-     */
-    private $response;
 
     /**
      * @var Order|MockObject $order
@@ -93,11 +73,6 @@ class BPRedirectTest extends TestCase
     private $bitpayInvoiceRepository;
 
     /**
-     * @var ResponseFactory|MockObject $responseFactory
-     */
-    private $responseFactory;
-
-    /**
      * @var Invoice|MockObject $invoice
      */
     private $invoice;
@@ -123,26 +98,23 @@ class BPRedirectTest extends TestCase
     private $logger;
 
     /**
-     * @var PageFactory|MockObject $resultPageFactory
+     * @var ResultFactory|MockObject $resultFactory
      */
-    private $resultPageFactory;
+    private $resultFactory;
 
     public function setUp(): void
     {
         $this->checkoutSession = $this->getMock(Session::class);
         $this->client = $this->getMock(Client::class);
-        $this->redirect = $this->getMock(RedirectInterface::class);
-        $this->response = $this->getMock(\Magento\Framework\App\Response\Http::class);
         $this->order = $this->getMock(\Magento\Sales\Model\Order::class);
         $this->config = $this->getMock(Config::class);
         $this->transactionRepository = $this->getMock(TransactionRepository::class);
-        $this->responseFactory = $this->getMock(ResponseFactory::class);
         $this->invoice = $this->getMock(Invoice::class);
         $this->messageManager = $this->getMock(Manager::class);
         $this->registry = $this->getMock(Registry::class);
         $this->url = $this->getMock(UrlInterface::class);
         $this->logger = $this->getMock(Logger::class);
-        $this->resultPageFactory = $this->getMock(PageFactory::class);
+        $this->resultFactory = $this->getMock(ResultFactory::class);
         $this->orderRepository = $this->getMock(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->getMock(BitpayInvoiceRepository::class);
         $this->bpRedirect = $this->getClass();
@@ -193,6 +165,10 @@ class BPRedirectTest extends TestCase
 
         if ($ux === 'modal') {
             $this->prepareResponse();
+        } else {
+            $result = $this->getMock(Redirect::class);
+            $result->expects($this->once())->method('setUrl')->willReturnSelf();
+            $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
         }
 
         $this->bpRedirect->execute();
@@ -215,8 +191,9 @@ class BPRedirectTest extends TestCase
             ->method('getData')
             ->with('last_order_id')
             ->willReturn(null);
-        $response->expects($this->once())->method('sendResponse')->willReturnSelf();
-        $this->response->expects($this->once())->method('setRedirect')->willReturn($response);
+        $result = $this->getMock(Redirect::class);
+        $result->expects($this->once())->method('setUrl')->willReturnSelf();
+        $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
 
         $this->bpRedirect->execute();
     }
@@ -241,7 +218,9 @@ class BPRedirectTest extends TestCase
         $order->expects($this->once())->method('getPayment')->willReturn($payment);
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
         $this->config->expects($this->once())->method('getBaseUrl')->willReturn($baseUrl);
-        $this->resultPageFactory->expects($this->once())->method('create')->wilLReturn($page);
+        
+        $result = $this->getMock(\Magento\Framework\Controller\Result\Redirect::class);
+        $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
 
         $this->bpRedirect->execute();
     }
@@ -296,9 +275,9 @@ class BPRedirectTest extends TestCase
 
     private function prepareResponse(): void
     {
-        $response = $this->getMock(\Magento\Framework\HTTP\PhpEnvironment\Response::class);
-        $response->expects($this->once())->method('setRedirect')->willReturnSelf();
-        $this->responseFactory->expects($this->once())->method('create')->willReturn($response);
+        $result = $this->getMock(\Magento\Framework\Controller\Result\Redirect::class);
+        $result->expects($this->once())->method('setUrl')->willReturnSelf();
+        $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
     }
 
     private function getOrder(string $incrementId, MockObject $payment, MockObject $billingAddress, ?int $orderId)
@@ -350,18 +329,15 @@ class BPRedirectTest extends TestCase
     {
         return new BPRedirect(
             $this->checkoutSession,
-            $this->redirect,
-            $this->response,
             $this->order,
             $this->config,
             $this->transactionRepository,
-            $this->responseFactory,
             $this->invoice,
             $this->messageManager,
             $this->registry,
             $this->url,
             $this->logger,
-            $this->resultPageFactory,
+            $this->resultFactory,
             $this->client,
             $this->orderRepository,
             $this->bitpayInvoiceRepository
