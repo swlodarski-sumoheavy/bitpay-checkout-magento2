@@ -20,6 +20,7 @@ use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use \Magento\Framework\Controller\Result\Redirect;
 use Magento\Framework\Controller\ResultFactory;
+use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Sales\Model\Order;
 use Magento\Payment\Model\MethodInterface;
 use Magento\Sales\Model\OrderRepository;
@@ -102,6 +103,11 @@ class BPRedirectTest extends TestCase
      */
     private $resultFactory;
 
+    /**
+     * @var EncryptorInterface|MockObject $encryptor
+     */
+    private $encryptor;
+
     public function setUp(): void
     {
         $this->checkoutSession = $this->getMock(Session::class);
@@ -112,11 +118,12 @@ class BPRedirectTest extends TestCase
         $this->invoice = $this->getMock(Invoice::class);
         $this->messageManager = $this->getMock(Manager::class);
         $this->registry = $this->getMock(Registry::class);
-        $this->url = $this->getMock(UrlInterface::class);
+        $this->url = $this->getMockBuilder(UrlInterface::class)->getMock();
         $this->logger = $this->getMock(Logger::class);
         $this->resultFactory = $this->getMock(ResultFactory::class);
         $this->orderRepository = $this->getMock(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->getMock(BitpayInvoiceRepository::class);
+        $this->encryptor = $this->getMock(EncryptorInterface::class);
         $this->bpRedirect = $this->getClass();
     }
 
@@ -141,6 +148,14 @@ class BPRedirectTest extends TestCase
             ->method('getData')
             ->with('last_order_id')
             ->willReturn($lastOrderId);
+
+        $this->url->expects(
+            $this->any()
+        )->method(
+            'getUrl'
+        )
+        ->withConsecutive(['bitpay-invoice', ['_query' => ['order_id' => $incrementId]]], ['checkout/cart'])
+        ->willReturnOnConsecutiveCalls('http://localhost/bitpay-invoice?order_id=' . $incrementId, 'http://localhost/checkout/cart');
 
         $billingAddress->expects($this->once())->method('getData')
             ->willReturn(['first_name' => 'test', 'last_name' => 'test1']);
@@ -171,7 +186,9 @@ class BPRedirectTest extends TestCase
             $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
         }
 
-        $this->bpRedirect->execute();
+        $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
+
+        $this->bpRedirect->execute($page);
     }
 
     /**
@@ -195,7 +212,9 @@ class BPRedirectTest extends TestCase
         $result->expects($this->once())->method('setUrl')->willReturnSelf();
         $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
 
-        $this->bpRedirect->execute();
+        $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
+
+        $this->bpRedirect->execute($page);
     }
 
     public function testExecuteNoBitpayPaymentMethod(): void
@@ -217,12 +236,10 @@ class BPRedirectTest extends TestCase
         $order->expects($this->once())->method('getIncrementId')->willReturn($incrementId);
         $order->expects($this->once())->method('getPayment')->willReturn($payment);
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
-        $this->config->expects($this->once())->method('getBaseUrl')->willReturn($baseUrl);
-        
-        $result = $this->getMock(\Magento\Framework\Controller\Result\Redirect::class);
-        $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
 
-        $this->bpRedirect->execute();
+        $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
+
+        $this->assertSame($page, $this->bpRedirect->execute($page));
     }
 
     /**
@@ -245,6 +262,14 @@ class BPRedirectTest extends TestCase
             ->with('last_order_id')
             ->willReturn($lastOrderId);
 
+        $this->url->expects(
+            $this->any()
+        )->method(
+            'getUrl'
+        )
+        ->withConsecutive(['bitpay-invoice', ['_query' => ['order_id' => $incrementId]]], ['checkout/cart'])
+        ->willReturnOnConsecutiveCalls('http://localhost/bitpay-invoice?order_id=' . $incrementId, 'http://localhost/checkout/cart');
+
         $billingAddress->expects($this->once())->method('getData')
             ->willReturn(['first_name' => 'test', 'last_name' => 'test1']);
         $billingAddress->expects($this->once())->method('getFirstName')->willReturn('test');
@@ -263,7 +288,9 @@ class BPRedirectTest extends TestCase
             ->method('BPCCreateInvoice')
             ->willThrowException(new $exceptionType('something went wrong'));
 
-        $this->bpRedirect->execute();
+        $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
+
+        $this->bpRedirect->execute($page);
     }
 
     public function exceptionTypeDataProvider(): array
@@ -340,7 +367,8 @@ class BPRedirectTest extends TestCase
             $this->resultFactory,
             $this->client,
             $this->orderRepository,
-            $this->bitpayInvoiceRepository
+            $this->bitpayInvoiceRepository,
+            $this->encryptor
         );
     }
 

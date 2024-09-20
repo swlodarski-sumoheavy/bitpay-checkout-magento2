@@ -28,6 +28,6 @@ class SuccessPlugin
         \Magento\Checkout\Controller\Onepage\Success $subject,
         \Magento\Framework\Controller\ResultInterface $result
     ) {
-        return $this->bpRedirect->execute();
+        return $this->bpRedirect->execute($result, $subject->getRequest()->getParam('return_id'));
     }
 }
