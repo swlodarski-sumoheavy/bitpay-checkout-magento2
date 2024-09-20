@@ -19,6 +19,7 @@
                 <model>Bitpay\BPCheckout\Model\BPCheckout</model>
                 <group>offline</group>
                 <send_order_email>0</send_order_email>
+                <bitpay_checkout_success>module</bitpay_checkout_success>
             </bpcheckout>
             <!-- payment-config -->
         </payment>

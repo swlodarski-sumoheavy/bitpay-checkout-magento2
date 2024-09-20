@@ -19,6 +19,7 @@ class Config
     public const BITPAY_PAYMENT_ACTIVE = 'payment/bpcheckout/active';
     public const BPCHECKOUT_ORDER_STATUS = 'payment/bpcheckout/order_status';
     public const BITPAY_UX = 'payment/bpcheckout/bitpay_ux';
+    public const BITPAY_CHECKOUT_SUCCESS = 'payment/bpcheckout/bitpay_checkout_success';
     public const BITPAY_MERCHANT_TOKEN_DATA = 'bitpay_merchant_facade/authenticate/token_data';
     public const BITPAY_MERCHANT_PRIVATE_KEY_PATH = 'bitpay_merchant_facade/authenticate/private_key_path';
     public const BITPAY_MERCHANT_PASSWORD = 'bitpay_merchant_facade/authenticate/password';
@@ -27,7 +28,7 @@ class Config
     public const BITPAY_PROD_TOKEN_URL = 'https://bitpay.com/tokens';
     public const API_HOST_DEV = 'test.bitpay.com';
     public const API_HOST_PROD = 'bitpay.com';
-    public const EXTENSION_VERSION = 'Bitpay_BPCheckout_Magento2_9.2.2';
+    public const EXTENSION_VERSION = 'Bitpay_BPCheckout_Magento2_9.3.0';
     public const BITPAY_PAYMENT_METHOD_NAME = 'bpcheckout';
     public const BITPAY_PAYMENT_ICON = 'Pay-with-BitPay-CardGroup.svg';
     public const BITPAY_PAYMENT_DIR_IMAGES = 'images';
@@ -107,6 +108,16 @@ class Config
     public function getBitpayUx():? string
     {
         return $this->scopeConfig->getValue(self::BITPAY_UX, ScopeInterface::SCOPE_STORE);
+    }
+
+    /**
+     * Get BitPay CheckoutSuccess
+     *
+     * @return string|null
+     */
+    public function getBitpayCheckoutSuccess():? string
+    {
+        return $this->scopeConfig->getValue(self::BITPAY_CHECKOUT_SUCCESS, ScopeInterface::SCOPE_STORE);
     }
 
     /**

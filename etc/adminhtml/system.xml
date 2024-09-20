@@ -128,6 +128,11 @@
                     <source_model>Bitpay\BPCheckout\Model\Config\Source\Ux</source_model>
                 </field>
 
+                <field id="bitpay_checkout_success" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Checkout Success</label>
+                    <comment><![CDATA[Note: Using the standard checkout success page may require updates to your theme.]]></comment>
+                    <source_model>Bitpay\BPCheckout\Model\Config\Source\CheckoutSuccess</source_model>
+                </field>
 
                 <field id="specificcountry" translate="label" type="multiselect" sortOrder="41" showInDefault="1"
                     showInWebsite="1" showInStore="0">

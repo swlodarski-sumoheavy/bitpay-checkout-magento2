@@ -27,4 +27,14 @@ class BPCheckout extends AbstractMethod
      * @var bool
      */
     protected $_isOffline = true;
+
+    /**
+     * Get config payment action, do nothing if status is pending
+     *
+     * @return string|null
+     */
+    public function getConfigPaymentAction()
+    {
+        return $this->getConfigData('order_status') == 'pending' ? null : parent::getConfigPaymentAction();
+    }
 }

@@ -9,6 +9,7 @@ define([
         var orderId = getParams()['order_id']
         var env = config.env
         var baseUrl = config.baseUrl
+        var returnId = getParams()["return_id"]
         if(env == "test"){
             bitpay.enableTestMode()
         }
@@ -22,8 +23,17 @@ define([
                 deleteCookie('env')
                 deleteCookie('invoicedata')
                 deleteCookie('modal')
-                document.getElementById("bitpay-header").innerHTML = 'Thank you for your purchase.';
-                document.getElementById("success-bitpay-page").style.display = 'block';
+
+                if (returnId) {
+                    window.location.replace(
+                      baseUrl + "checkout/onepage/success/?return_id=" + returnId
+                    );
+                } else {
+                    document.getElementById("bitpay-header").innerHTML =
+                      "Thank you for your purchase.";
+                    document.getElementById("success-bitpay-page").style.display =
+                      "block";
+                }
 
                 return;
             }
