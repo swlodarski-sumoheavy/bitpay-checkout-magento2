@@ -1,0 +1,5 @@
+# These files/directories are not included when making
+# an archive of this repository.
+
+.gitattributes export-ignore
+.gitignore export-ignore
