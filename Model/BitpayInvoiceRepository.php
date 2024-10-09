@@ -19,11 +19,11 @@ class BitpayInvoiceRepository
      *
      * @param string $orderId
      * @param string $invoiceID
-     * @param string $expirationTime
+     * @param int $expirationTime
      * @param int|null $acceptanceWindow
      * @return void
      */
-    public function add(string $orderId, string $invoiceID, string $expirationTime, ?int $acceptanceWindow): void
+    public function add(string $orderId, string $invoiceID, int $expirationTime, ?int $acceptanceWindow): void
     {
         $this->bitpayInvoice->add($orderId, $invoiceID, $expirationTime, $acceptanceWindow);
     }

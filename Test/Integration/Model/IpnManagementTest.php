@@ -226,7 +226,7 @@ class IpnManagementTest extends TestCase
         $invoice->setRedirectURL($params->getData('redirectURL'));
         $invoice->setNotificationURL($params->getData('notificationURL'));
         $invoice->setCloseURL($params->getData('closeURL'));
-        $invoice->setExpirationTime('23323423423423');
+        $invoice->setExpirationTime(23323423423423);
         $invoice->setAmountPaid(12312321);
         $invoice->setExtendedNotifications($params->getData('extendedNotifications'));
 

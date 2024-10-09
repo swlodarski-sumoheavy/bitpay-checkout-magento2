@@ -11,6 +11,8 @@ use Bitpay\BPCheckout\Model\Config;
 use Bitpay\BPCheckout\Model\Invoice;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
+use BitPaySDK\Util\RESTcli\RESTcli;
+use BitPaySDK\Tokens;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\DataObject;
 use Magento\Framework\Message\Manager;
@@ -92,6 +94,16 @@ class BPRedirectTest extends TestCase
      * @var UrlInterface|MockObject $url
      */
     private $url;
+
+    /**
+     * @var RESTcli|MockObject $RESTcli
+     */
+    private $RESTcli;
+
+    /**
+     * @var Tokens|MockObject $tokens
+     */
+    private $tokens;
 
     /**
      * @var Logger|MockObject $logger
@@ -280,7 +292,7 @@ class BPRedirectTest extends TestCase
         $payment->expects($this->once())->method('getMethodInstance')->willReturn($method);
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
 
-        $client = new \BitPaySDK\Client();
+        $client = new \BitPaySDK\Client($RESTcli, $tokens);
         $this->client->expects($this->once())->method('initialize')->willReturn($client);
         $this->prepareResponse();
 
@@ -389,7 +401,7 @@ class BPRedirectTest extends TestCase
         $invoice->setRedirectURL($params->getData('redirectURL'));
         $invoice->setNotificationURL($params->getData('notificationURL'));
         $invoice->setExtendedNotifications($params->getData('extendedNotifications'));
-        $invoice->setExpirationTime('23323423423423');
+        $invoice->setExpirationTime(23323423423423);
 
         return $invoice;
     }
