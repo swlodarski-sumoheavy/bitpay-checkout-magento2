@@ -181,7 +181,7 @@ class BPRedirectTest extends TestCase
 
         $invoice = $this->prepareInvoice($params);
 
-        $bitpayClient = new \BitPaySDK\Client();
+        $bitpayClient = new \BitPaySDK\Client($RESTcli, $tokens);
         $this->client->expects($this->once())->method('initialize')->willReturn($bitpayClient);
 
         $this->invoice->expects($this->once())->method('BPCCreateInvoice')->willReturn($invoice);
