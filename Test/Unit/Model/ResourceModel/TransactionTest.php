@@ -94,8 +94,8 @@ class TransactionTest extends TestCase
         $resourceConnection = $this->getMockBuilder(ResourceConnection::class)->disableOriginalConstructor()->getMock();
         $this->adapter = $this->getMockBuilder(AdapterInterface::class)->disableOriginalConstructor()->getMock();
         $resourceConnection->expects($this->once())->method('getConnection')->willReturn($this->adapter);
-        $this->contex = $this->getMockBuilder(Context::class)->disableOriginalConstructor()->getMock();
-        $this->contex->expects($this->once())->method('getResources')->willReturn($resourceConnection);
+        $this->context = $this->getMockBuilder(Context::class)->disableOriginalConstructor()->getMock();
+        $this->context->expects($this->once())->method('getResources')->willReturn($resourceConnection);
     }
 
     private function prepareTableName(): void

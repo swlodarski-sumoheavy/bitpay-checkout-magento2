@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bitpay\BPCheckout\Test\Unit\Model;
 
 use BitPaySDK\Exceptions\BitPayException;
+use BitPaySDK\Exceptions\BitPayGenericException;
 use BitPaySDK\Model\Invoice\Invoice;
 use BitPaySDK\Model\Invoice\Refund;
 use Bitpay\BPCheckout\Model\BitpayInvoiceRepository;
@@ -146,7 +147,7 @@ class BitPayRefundOnlineTest extends TestCase
         $bitPaySdkClient = $this->getBitPaySdkClientMock();
         $invoice = $this->getInvoiceMock();
         $errorMessage = 'error message from API';
-        $exception = new BitPayException($errorMessage, 100, null, '010207');
+        $exception = new BitPayGenericException($errorMessage, 100, null);
 
         $class = new BitPayRefundOnline(
             $bitPayClient,
