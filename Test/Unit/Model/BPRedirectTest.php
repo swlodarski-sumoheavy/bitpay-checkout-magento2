@@ -130,6 +130,8 @@ class BPRedirectTest extends TestCase
         $this->invoice = $this->getMock(Invoice::class);
         $this->messageManager = $this->getMock(Manager::class);
         $this->registry = $this->getMock(Registry::class);
+        $this->RESTcli = $this->getMock(RESTcli::class);
+        $this->tokens = $this->getMock(Tokens::class);
         $this->url = $this->getMockBuilder(UrlInterface::class)->getMock();
         $this->logger = $this->getMock(Logger::class);
         $this->resultFactory = $this->getMock(ResultFactory::class);
@@ -181,7 +183,7 @@ class BPRedirectTest extends TestCase
 
         $invoice = $this->prepareInvoice($params);
 
-        $bitpayClient = new \BitPaySDK\Client($RESTcli, $tokens);
+        $bitpayClient = new \BitPaySDK\Client($this->RESTcli, $this->tokens);
         $this->client->expects($this->once())->method('initialize')->willReturn($bitpayClient);
 
         $this->invoice->expects($this->once())->method('BPCCreateInvoice')->willReturn($invoice);
@@ -292,7 +294,7 @@ class BPRedirectTest extends TestCase
         $payment->expects($this->once())->method('getMethodInstance')->willReturn($method);
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
 
-        $client = new \BitPaySDK\Client($RESTcli, $tokens);
+        $client = new \BitPaySDK\Client($this->RESTcli, $this->tokens);
         $this->client->expects($this->once())->method('initialize')->willReturn($client);
         $this->prepareResponse();
 
