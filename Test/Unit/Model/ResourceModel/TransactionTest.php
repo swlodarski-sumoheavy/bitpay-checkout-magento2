@@ -14,6 +14,11 @@ use PHPUnit\Framework\TestCase;
 class TransactionTest extends TestCase
 {
     /**
+     * @var Context $context
+     */
+    private $context;
+
+    /**
      * @var Transaction $transaction
      */
     private $transaction;
@@ -26,7 +31,7 @@ class TransactionTest extends TestCase
     public function setUp(): void
     {
         $this->prepareContext();
-        $this->transaction = new Transaction($this->contex);
+        $this->transaction = new Transaction($this->context);
     }
 
     public function testAdd(): void
