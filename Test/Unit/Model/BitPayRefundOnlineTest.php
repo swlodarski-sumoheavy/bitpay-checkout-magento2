@@ -147,7 +147,7 @@ class BitPayRefundOnlineTest extends TestCase
         $bitPaySdkClient = $this->getBitPaySdkClientMock();
         $invoice = $this->getInvoiceMock();
         $errorMessage = 'error message from API';
-        $exception = new BitPayGenericException($errorMessage, 100, null);
+        $exception = new BitPayGenericException($errorMessage, 100, null, '101207');
 
         $class = new BitPayRefundOnline(
             $bitPayClient,
