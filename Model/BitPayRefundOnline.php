@@ -65,7 +65,7 @@ class BitPayRefundOnline
         $order->getPayment()->setData('message', $message);
     }
 
-    private function handleRefundCreationException(BitPayException $e): void
+    private function handleRefundCreationException(BitPayGenericException $e): void
     {
         $apiCode = $e->getApiCode();
         $this->logger->error($e->getMessage());
