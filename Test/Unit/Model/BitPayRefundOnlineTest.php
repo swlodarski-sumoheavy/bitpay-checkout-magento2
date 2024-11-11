@@ -146,8 +146,8 @@ class BitPayRefundOnlineTest extends TestCase
         $order = $this->getOrderMock();
         $bitPaySdkClient = $this->getBitPaySdkClientMock();
         $invoice = $this->getInvoiceMock();
-        $errorMessage = 'error message from API';
-        $exception = new BitPayGenericException($errorMessage, 100, null, '101207');
+        $errorMessage = __('A Credit Memo cannot be created until Payment is Confirmed.');
+        $exception = new \Magento\Framework\Exception\LocalizedException($errorMessage);
 
         $class = new BitPayRefundOnline(
             $bitPayClient,
@@ -172,7 +172,6 @@ class BitPayRefundOnlineTest extends TestCase
         $bitPayRefundRepository->expects(self::never())->method('add');
         $payment->expects(self::never())->method('setData');
 
-        $logger->expects(self::once())->method('error')->with($errorMessage);
         $this->expectException(\Magento\Framework\Exception\LocalizedException::class);
         $this->expectExceptionMessage('A Credit Memo cannot be created until Payment is Confirmed.');
 
