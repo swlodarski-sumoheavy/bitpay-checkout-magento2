@@ -10,10 +10,10 @@
             "name": "BitPay"
         }
     ],
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "require": {
         "php": "~8.1",
-        "bitpay/sdk": "^9.1.x-dev"
+        "bitpay/sdk": "^9.1"
     },
     "autoload": {
         "files": [
