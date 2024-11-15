@@ -14,6 +14,11 @@ use PHPUnit\Framework\TestCase;
 class TransactionTest extends TestCase
 {
     /**
+     * @var Context $context
+     */
+    private $context;
+
+    /**
      * @var Transaction $transaction
      */
     private $transaction;
@@ -26,7 +31,7 @@ class TransactionTest extends TestCase
     public function setUp(): void
     {
         $this->prepareContext();
-        $this->transaction = new Transaction($this->contex);
+        $this->transaction = new Transaction($this->context);
     }
 
     public function testAdd(): void
@@ -94,8 +99,8 @@ class TransactionTest extends TestCase
         $resourceConnection = $this->getMockBuilder(ResourceConnection::class)->disableOriginalConstructor()->getMock();
         $this->adapter = $this->getMockBuilder(AdapterInterface::class)->disableOriginalConstructor()->getMock();
         $resourceConnection->expects($this->once())->method('getConnection')->willReturn($this->adapter);
-        $this->contex = $this->getMockBuilder(Context::class)->disableOriginalConstructor()->getMock();
-        $this->contex->expects($this->once())->method('getResources')->willReturn($resourceConnection);
+        $this->context = $this->getMockBuilder(Context::class)->disableOriginalConstructor()->getMock();
+        $this->context->expects($this->once())->method('getResources')->willReturn($resourceConnection);
     }
 
     private function prepareTableName(): void

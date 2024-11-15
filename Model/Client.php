@@ -32,7 +32,7 @@ class Client
      */
     public function initialize(): \BitPaySDK\Client
     {
-        $env = $this->config->getBitpayEnv() === 'test' ? Env::Test : Env::Prod;
+        $env = $this->config->getBitpayEnv() === 'test' ? Env::TEST : Env::PROD;
         $privateKeyPath = $this->config->getPrivateKeyPath();
         $password = $this->encryptor->decrypt($this->config->getMerchantFacadePassword());
         $tokenData = $this->encryptor->decrypt($this->config->getMerchantTokenData());
@@ -40,6 +40,6 @@ class Client
         $merchantToken = $serializedTokenData['data'][0]['token'];
         $tokens = new Tokens($merchantToken);
 
-        return \BitPaySDK\Client::create()->withData($env, $privateKeyPath, $tokens, $password);
+        return \BitPaySDK\Client::createWithData($env, $privateKeyPath, $tokens, $password);
     }
 }

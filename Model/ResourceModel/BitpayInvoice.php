@@ -24,11 +24,11 @@ class BitpayInvoice extends AbstractDb
      *
      * @param string $orderId
      * @param string $invoiceID
-     * @param string $expirationTime
+     * @param int $expirationTime
      * @param int|null $acceptanceWindow
      * @return void
      */
-    public function add(string $orderId, string $invoiceID, string $expirationTime, ?int $acceptanceWindow)
+    public function add(string $orderId, string $invoiceID, int $expirationTime, ?int $acceptanceWindow)
     {
         $connection = $this->getConnection();
         $table_name = $connection->getTableName(self::TABLE_NAME);
