@@ -20,6 +20,11 @@ class TransactionTest extends TestCase
      */
     private $transactionResource;
 
+    /**
+     * @var Context $context
+     */
+    private $context;
+
     public function setUp(): void
     {
         $this->objectManager = Bootstrap::getObjectManager();
