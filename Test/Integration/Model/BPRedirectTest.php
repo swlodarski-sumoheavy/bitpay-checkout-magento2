@@ -8,7 +8,6 @@ use Bitpay\BPCheckout\Model\BPRedirect;
 use Bitpay\BPCheckout\Model\Client;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Flag;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Framework\Phrase;
 use Magento\Sales\Model\Order;
@@ -16,21 +15,15 @@ use Bitpay\BPCheckout\Logger\Logger;
 use Bitpay\BPCheckout\Model\Config;
 use Bitpay\BPCheckout\Model\Invoice;
 use Bitpay\BPCheckout\Model\TransactionRepository;
-use Magento\Framework\App\Action\Action;
-use Magento\Framework\App\ActionFlag;
-use Magento\Framework\DataObject;
-use Magento\Framework\Event\Observer;
-use Magento\Framework\Event\ObserverInterface;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Magento\Framework\Message\Manager;
 use Magento\Framework\Registry;
-use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
+use Magento\Framework\Encryption\EncryptorInterface;
 
 /**
  * @SuppressWarnings(PHPMD.TooManyFields)
@@ -112,6 +105,11 @@ class BPRedirectTest extends TestCase
      */
     private $bitpayInvoiceRepository;
 
+    /**
+     * @var EncryptorInterface|MockObject $encryptor
+     */
+    private $encryptor;
+
     public function setUp(): void
     {
         $this->objectManager =  Bootstrap::getObjectManager();
@@ -128,6 +126,10 @@ class BPRedirectTest extends TestCase
         $this->client = $this->getMockBuilder(Client::class)->disableOriginalConstructor()->getMock();
         $this->orderRepository = $this->objectManager->get(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->objectManager->get(BitpayInvoiceRepository::class);
+        $this->bitpayInvoiceRepository = $this->objectManager->get(BitpayInvoiceRepository::class);
+        $this->encryptor = $this->getMockBuilder(EncryptorInterface::class)
+             ->disableOriginalConstructor()
+             ->getMock();
 
         $this->bpRedirect = new BPRedirect(
             $this->checkoutSession,
@@ -142,7 +144,8 @@ class BPRedirectTest extends TestCase
             $this->resultFactory,
             $this->client,
             $this->orderRepository,
-            $this->bitpayInvoiceRepository
+            $this->bitpayInvoiceRepository,
+            $this->encryptor
         );
     }
 
@@ -178,7 +181,8 @@ class BPRedirectTest extends TestCase
         $this->invoice->expects($this->once())->method('BPCCreateInvoice')
             ->willReturn($invoice);
 
-        $this->bpRedirect->execute();
+        $defaultResult = $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_PAGE);
+        $this->bpRedirect->execute($defaultResult);
         $customerInfo = $this->checkoutSession->getCustomerInfo();
 
         $this->assertEquals('customer@example.com', $customerInfo['email']);
@@ -219,7 +223,8 @@ class BPRedirectTest extends TestCase
         $this->invoice->expects($this->once())->method('BPCCreateInvoice')
             ->willThrowException(new LocalizedException(new Phrase('Invalid token')));
 
-        $this->bpRedirect->execute();
+        $defaultResult = $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_PAGE);
+        $this->bpRedirect->execute($defaultResult);
         $this->assertEquals(
             'We are unable to place your Order at this time',
             $this->messageManager->getMessages()->getLastAddedMessage()->getText()
