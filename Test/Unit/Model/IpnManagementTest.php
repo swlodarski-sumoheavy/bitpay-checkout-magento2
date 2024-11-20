@@ -299,8 +299,45 @@ class IpnManagementTest extends TestCase
         $client->expects($this->once())->method('getInvoice')->willReturn($invoice);
         $this->client->expects($this->once())->method('initialize')->willReturn($client);
         $this->transactionRepository->expects($this->once())->method('findBy')->willReturn([]);
-        $this->throwException(new IPNValidationException('Email from IPN data (\'test@example.com\') does not' .
-            'match with email from invoice (\'test1@example.com\')'));
+
+        $this->response->expects($this->once())->method('addMessage')->with(
+            "Email from IPN data ('{$data['data']['buyerFields']['buyerEmail']}') does not match with " .
+            "email from invoice ('{$invoice->getBuyer()->getEmail()}')",
+            500
+        );
+
+        $this->ipnManagement->postIpn();
+    }
+
+    public function testPostIpnNoValidatorErrorWhenEmailCasingMismatch(): void
+    {
+        $eventName = 'ivoice_confirmed';
+        $orderInvoiceId = '12';
+        $data = [
+            'data' => [
+                'orderId' => '00000012',
+                'id' => $orderInvoiceId,
+                'buyerFields' => [
+                    'buyerName' => 'test',
+                    'buyerEmail' => 'Test@exaMple.COM',
+                    'buyerAddress1' => '12 test road'
+                ],
+                'amountPaid' => 1232132
+            ],
+            'event' => ['name' => $eventName]
+        ];
+        $serializer = new Json();
+        $serializerData = $serializer->serialize($data);
+        $this->serializer->expects($this->once())->method('unserialize')->willReturn($data);
+        $this->request->expects($this->once())->method('getContent')->willReturn($serializerData);
+
+        $invoice = $this->prepareInvoice();
+        $client = $this->getMockBuilder(\BitPaySDK\Client::class)->disableOriginalConstructor()->getMock();
+        $client->expects($this->once())->method('getInvoice')->willReturn($invoice);
+        $this->client->expects($this->once())->method('initialize')->willReturn($client);
+        $this->transactionRepository->expects($this->once())->method('findBy')->willReturn([]);
+
+        $this->response->expects($this->never())->method('addMessage');
 
         $this->ipnManagement->postIpn();
     }
