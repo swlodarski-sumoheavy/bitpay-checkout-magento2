@@ -41,6 +41,6 @@ class Client
         $tokens = new Tokens($merchantToken);
         $platformInfo = 'BitPay_Magento2_v10.0.0';
 
-        return \BitPaySDK\Client::createWithData($env, $privateKeyPath, $tokens, $password, $platformInfo);
+        return \BitPaySDK\Client::createWithData($env, $privateKeyPath, $tokens, $password, null, $platformInfo);
     }
 }
