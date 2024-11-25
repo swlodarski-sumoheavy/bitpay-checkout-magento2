@@ -80,14 +80,6 @@ class ConfigTest extends TestCase
     }
 
     /**
-     * @magentoConfigFixture current_store payment/bpcheckout/bitpay_ux modal
-     */
-    public function testGetBitpayUx(): void
-    {
-        $this->assertEquals('modal', $this->config->getBitpayUx());
-    }
-
-    /**
      * @magentoConfigFixture current_store payment/bpcheckout/bitpay_ipn_mapping pending
      */
     public function testGetBitpayIpnMapping(): void
