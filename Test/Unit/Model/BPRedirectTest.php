@@ -142,11 +142,10 @@ class BPRedirectTest extends TestCase
     }
 
     /**
-     * @param $ux
      * @return void
      * @throws \Exception
      */
-    public function testExecute($ux): void
+    public function testExecute(): void
     {
         $incrementId = '0000012121';
         $bitpayToken = 'A32nRffe34dF2312vmm';
