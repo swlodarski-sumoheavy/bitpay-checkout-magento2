@@ -3,60 +3,24 @@
 $configValue = $block->getBaseSecureUrl();
 $env = $block->getBitpayEnv();
 $order_id = $block->getOrderId();
-if ($block->getModalParam() === 1): ?>
+?>
+<h2 id="bitpay-header">Thank you for your purchase.</h2>
+<div id="success-bitpay-page">
+    <?php /** @var $block \Magento\Checkout\Block\Onepage\Success */ ?>
+    <div class="checkout-success">
+        <?php if ($order_id): ?>
+            <p><?= /* @noEscape */ __('Your order # is: <b>' . $order_id . '</b> ') ?></p>
+            <p>
+                <?= /* @noEscape */ __('We\'ll email you an order confirmation with details and tracking info. ') ?>
+            </p>
+        <?php endif; ?>
 
-    <script type="text/x-magento-init">
-    {
-        "*": {
-            "Bitpay_BPCheckout/js/bitpay/checkout/index": {
-                "env": "<?= /* @noEscape */ $env ?>",
-                "baseUrl": "<?= /* @noEscape */ $configValue ?>"
-            }
-        }
-    }
-
-    </script>
-    <!--page to show with modal-->
-    <h2 id="bitpay-header"><?= /* @noEscape */ __('Loading BitPay Invoice...') ?></h2>
-    <div id="success-bitpay-page" style="display:none;">
-        <?php /** @var $block \Magento\Checkout\Block\Onepage\Success */ ?>
-        <div class="checkout-success">
-            <?php if ($order_id): ?>
-                <p><?= /* @noEscape */ __('Your order # is: <b>' . $order_id . '</b> ') ?></p>
-                <p>
-                    <?= /* @noEscape */ __('We\'ll email you an order confirmation with details and tracking info. ') ?>
-                </p>
-            <?php endif; ?>
-            <div class="actions-toolbar">
-                <div class="primary">
-                    <a class="action primary continue"
-                       href="/"><span><?= $block->escapeHtml(__('Continue Shopping')) ?></span></a>
-                </div>
+        <div class="actions-toolbar">
+            <div class="primary">
+                <a class="action primary continue"
+                    href="/"><span><?= $block->escapeHtml(__('Continue Shopping')) ?></span></a>
             </div>
         </div>
     </div>
-    <!--end page to show with modal-->
-
-    <!--page to show with redirect-->
-<?php else: ?>
-    <h2 id="bitpay-header">Thank you for your purchase.</h2>
-    <div id="success-bitpay-page">
-        <?php /** @var $block \Magento\Checkout\Block\Onepage\Success */ ?>
-        <div class="checkout-success">
-            <?php if ($order_id): ?>
-                <p><?= /* @noEscape */ __('Your order # is: <b>' . $order_id . '</b> ') ?></p>
-                <p>
-                    <?= /* @noEscape */ __('We\'ll email you an order confirmation with details and tracking info. ') ?>
-                </p>
-            <?php endif; ?>
-
-            <div class="actions-toolbar">
-                <div class="primary">
-                    <a class="action primary continue"
-                       href="/"><span><?= $block->escapeHtml(__('Continue Shopping')) ?></span></a>
-                </div>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>
+</div>
 <!--end page to show with redirect-->

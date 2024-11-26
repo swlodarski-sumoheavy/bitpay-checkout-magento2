@@ -142,12 +142,10 @@ class BPRedirectTest extends TestCase
     }
 
     /**
-     * @param $ux
      * @return void
      * @throws \Exception
-     * @dataProvider getUxDataProvider
      */
-    public function testExecute($ux): void
+    public function testExecute(): void
     {
         $incrementId = '0000012121';
         $bitpayToken = 'A32nRffe34dF2312vmm';
@@ -192,27 +190,13 @@ class BPRedirectTest extends TestCase
         $this->bitpayInvoiceRepository->expects($this->once())->method('add');
         $this->transactionRepository->expects($this->once())->method('add');
 
-        if ($ux === 'modal') {
-            $this->prepareResponse();
-        } else {
-            $result = $this->getMock(Redirect::class);
-            $result->expects($this->once())->method('setUrl')->willReturnSelf();
-            $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
-        }
+        $result = $this->getMock(Redirect::class);
+        $result->expects($this->once())->method('setUrl')->willReturnSelf();
+        $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
 
         $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
 
         $this->bpRedirect->execute($page);
-    }
-
-    /**
-     * @return array[]
-     */
-    public function getUxDataProvider(): array
-    {
-        return [
-            ['modal'], ['redirect']
-        ];
     }
 
     public function testExecuteNoOrderId(): void
@@ -341,7 +325,6 @@ class BPRedirectTest extends TestCase
     private function prepareConfig(string $baseUrl, string $ux): void
     {
         $this->config->expects($this->once())->method('getBPCheckoutOrderStatus')->willReturn('pending');
-        $this->config->expects($this->once())->method('getBitpayUx')->willReturn($ux);
         $this->config->expects($this->once())->method('getBaseUrl')->willReturn($baseUrl);
     }
 

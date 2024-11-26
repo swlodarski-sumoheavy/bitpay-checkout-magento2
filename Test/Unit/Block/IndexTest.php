@@ -67,16 +67,6 @@ class IndexTest extends TestCase
         $this->assertEquals(self::ENV, $this->index->getBitpayEnv());
     }
 
-    public function testGetModalParam(): void
-    {
-        $this->request->expects($this->once())
-            ->method('getParam')
-            ->with('m')
-            ->willReturn(1);
-
-        $this->assertEquals(1, $this->index->getModalParam());
-    }
-
     public function testGetOrderId(): void
     {
         $this->request->expects($this->once())->method('getParam')

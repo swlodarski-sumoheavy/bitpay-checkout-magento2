@@ -101,16 +101,6 @@ class Config
     }
 
     /**
-     * Get BitPay Ux
-     *
-     * @return string|null
-     */
-    public function getBitpayUx():? string
-    {
-        return $this->scopeConfig->getValue(self::BITPAY_UX, ScopeInterface::SCOPE_STORE);
-    }
-
-    /**
      * Get BitPay CheckoutSuccess
      *
      * @return string|null

@@ -129,17 +129,14 @@ class BPRedirect
         try {
             $baseUrl = $this->config->getBaseUrl();
             $order = $this->setToPendingAndOverrideMagentoStatus($order);
-            $modal = $this->config->getBitpayUx() === 'modal';
             $redirectUrl = $this->url->getUrl('bitpay-invoice', ['_query' => ['order_id' => $incrementId]]);
             if ($isStandardCheckoutSuccess) {
                 $this->checkoutSession->setLastSuccessQuoteId($order->getQuoteId());
-                if (!$modal) {
-                    $redirectUrl = $this->url->getUrl('checkout/onepage/success', [
-                        '_query' => ['return_id' => $returnHash]
-                    ]);
-                }
+                $redirectUrl = $this->url->getUrl('checkout/onepage/success', [
+                    '_query' => ['return_id' => $returnHash]
+                ]);
             }
-            $params = $this->getParams($order, $incrementId, $modal, $redirectUrl, $baseUrl);
+            $params = $this->getParams($order, $incrementId, $redirectUrl, $baseUrl);
             $billingAddressData = $order->getBillingAddress()->getData();
             $this->setSessionCustomerData($billingAddressData, $order->getCustomerEmail(), $incrementId);
             $client = $this->client->initialize();
@@ -153,34 +150,11 @@ class BPRedirect
                 $invoice->getAcceptanceWindow()
             );
             $this->transactionRepository->add($incrementId, $invoiceID, 'new');
-
-            switch ($modal) {
-                case true:
-                case 1:
-                    #set some info for guest checkout
-                    $this->setSessionCustomerData($billingAddressData, $order->getCustomerEmail(), $incrementId);
-
-                    $redirectParams = [
-                        'invoiceID' => $invoiceID,
-                        'order_id' => $incrementId,
-                        'm' => 1,
-                    ];
-                    if ($isStandardCheckoutSuccess) {
-                        $redirectParams['return_id'] = $returnHash;
-                    }
-                    $redirectUrl = $this->url->getUrl('bitpay-invoice', ['_query' => $redirectParams]);
-
-                    return $this->resultFactory->create(
-                        \Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT
-                    )
-                    ->setUrl($redirectUrl);
-                case false:
-                default:
-                    return $this->resultFactory->create(
-                        \Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT
-                    )
-                    ->setUrl($invoice->getUrl());
-            }
+        
+            return $this->resultFactory->create(
+                \Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT
+            )
+            ->setUrl($invoice->getUrl());
         } catch (\Exception $exception) {
             return $this->deleteOrderAndRedirectToCart($exception, $order);
         } catch (\Error $error) {
@@ -229,7 +203,6 @@ class BPRedirect
      *
      * @param OrderInterface $order
      * @param string|null $incrementId
-     * @param bool $modal
      * @param string $redirectUrl
      * @param string $baseUrl
      * @return DataObject
@@ -237,7 +210,6 @@ class BPRedirect
     private function getParams(
         OrderInterface $order,
         ?string $incrementId,
-        bool $modal,
         string $redirectUrl,
         string $baseUrl
     ): DataObject {
@@ -251,7 +223,7 @@ class BPRedirect
             'currency' => $order['base_currency_code'],
             'buyer' => $buyerInfo->getData(),
             'orderId' => trim($incrementId),
-            'redirectURL' => !$modal ? $redirectUrl . "&m=0" : $redirectUrl,
+            'redirectURL' => $redirectUrl,
             'notificationURL' => $baseUrl . 'rest/V1/bitpay-bpcheckout/ipn',
             'closeURL' => $baseUrl . 'rest/V1/bitpay-bpcheckout/close?orderID=' . $incrementId,
             'extendedNotifications' => true

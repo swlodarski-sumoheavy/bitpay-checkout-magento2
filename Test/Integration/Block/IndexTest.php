@@ -62,14 +62,6 @@ class IndexTest extends TestCase
         $this->assertEquals('test', $this->index->getBitpayEnv());
     }
 
-    public function testGetModalParam(): void
-    {
-        $requst = $this->context->getRequest();
-        $requst->setParams(['m' => '1']);
-
-        $this->assertEquals(1, $this->index->getModalParam());
-    }
-
     public function testOrderId(): void
     {
         $requst = $this->context->getRequest();

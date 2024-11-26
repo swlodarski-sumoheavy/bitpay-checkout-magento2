@@ -52,15 +52,6 @@ class ConfigTest extends TestCase
         );
     }
 
-    public function testGetBitpayUx(): void
-    {
-        $this->scopeConfig->expects($this->once())
-            ->method('getValue')
-            ->with(Config::BITPAY_UX, ScopeInterface::SCOPE_STORE)
-            ->willReturn('modal');
-        $this->assertEquals('modal', $this->config->getBitpayUx());
-    }
-
     public function testGetBitpayIpnMapping(): void
     {
         $this->scopeConfig->expects($this->once())

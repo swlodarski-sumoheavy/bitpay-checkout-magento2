@@ -40,16 +40,6 @@ class Index extends Template
     }
 
     /**
-     * Get modal param
-     *
-     * @return int
-     */
-    public function getModalParam(): int
-    {
-        return (int) $this->getRequest()->getParam('m');
-    }
-
-    /**
      * Get order id
      *
      * @return string

@@ -121,13 +121,6 @@
                     <source_model>Bitpay\BPCheckout\Model\Config\Source\Cancelstatus</source_model>
                 </field>
 
-
-                <field id="bitpay_ux" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Checkout Flow </label>
-                    <comment><![CDATA[If this is set to <b>Redirect</b>, then the customer will be redirected to <b>BitPay</b> to checkout, and return to the checkout page once the payment is made.<br><br>If this is set to <b>Modal</b>, the user will stay on your e-commerce site and complete the transaction.]]></comment>
-                    <source_model>Bitpay\BPCheckout\Model\Config\Source\Ux</source_model>
-                </field>
-
                 <field id="bitpay_checkout_success" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Checkout Success</label>
                     <comment><![CDATA[Note: Using the standard checkout success page may require updates to your theme.]]></comment>
