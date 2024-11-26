@@ -174,7 +174,7 @@ class BPRedirectTest extends TestCase
         $billingAddress->expects($this->once())->method('getFirstName')->willReturn('test');
         $billingAddress->expects($this->once())->method('getLastName')->willReturn('test1');
         $order = $this->getOrder($incrementId, $payment, $billingAddress, $lastOrderId);
-        $this->prepareConfig($baseUrl, $ux);
+        $this->prepareConfig($baseUrl, 'redirect');
         $method->expects($this->once())->method('getCode')->willReturn(Config::BITPAY_PAYMENT_METHOD_NAME);
         $payment->expects($this->once())->method('getMethodInstance')->willReturn($method);
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
