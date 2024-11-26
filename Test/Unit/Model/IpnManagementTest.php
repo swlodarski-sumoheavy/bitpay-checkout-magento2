@@ -100,12 +100,12 @@ class IpnManagementTest extends TestCase
     private $ipnManagement;
 
     /**
-     * @var Client $client
+     * @var Client|MockObject
      */
     private $client;
 
     /**
-     * @var \Magento\Framework\Webapi\Rest\Response $response
+     * @var \Magento\Framework\Webapi\Rest\Response|MockObject
      */
     private $response;
 
@@ -151,6 +151,37 @@ class IpnManagementTest extends TestCase
         $this->quoteFactory->expects($this->once())->method('create')->willReturn($quote);
 
         $response->expects($this->once())->method('setRedirect')->willReturnSelf();
+        $order->expects($this->once())->method('delete')->willReturnSelf();
+
+        $this->ipnManagement->postClose();
+    }
+
+    public function testPostCloseKeepOrder(): void
+    {
+        $this->config->expects($this->once())->method('getBitpayInvoiceCloseHandling')->willReturn('keep_order');
+
+        $quoteId = 21;
+        $cartUrl = 'http://localhost/checkout/cart?reload=1';
+        $quote = $this->getMock(Quote::class);
+        $response = $this->getMock(\Magento\Framework\HTTP\PhpEnvironment\Response::class);
+        $order = $this->getMock(Order::class);
+        $orderId = '000000012';
+        $this->url->expects($this->once())->method('getUrl')->willReturn($cartUrl);
+
+        $this->request->expects($this->once())->method('getParam')->willReturn($orderId);
+        $this->responseFactory->expects($this->once())->method('create')->willReturn($response);
+        $order->expects($this->once())->method('getData')->willReturn(['quote_id' => $quoteId]);
+        $this->orderInterface->expects($this->once())->method('loadByIncrementId')->willReturn($order);
+
+        $quote->expects($this->once())->method('loadByIdWithoutStore')->willReturnSelf();
+        $quote->expects($this->once())->method('getId')->willReturn($quoteId);
+        $quote->expects($this->once())->method('setIsActive')->willReturnSelf();
+        $quote->expects($this->once())->method('setReservedOrderId')->willReturnSelf();
+
+        $this->quoteFactory->expects($this->once())->method('create')->willReturn($quote);
+
+        $response->expects($this->once())->method('setRedirect')->willReturnSelf();
+        $order->expects($this->never())->method('delete')->willReturnSelf();
 
         $this->ipnManagement->postClose();
     }

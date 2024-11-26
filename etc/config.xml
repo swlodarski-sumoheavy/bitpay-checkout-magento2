@@ -20,6 +20,7 @@
                 <group>offline</group>
                 <send_order_email>0</send_order_email>
                 <bitpay_checkout_success>module</bitpay_checkout_success>
+                <bitpay_invoice_close_handling>delete_order</bitpay_invoice_close_handling>
             </bpcheckout>
             <!-- payment-config -->
         </payment>

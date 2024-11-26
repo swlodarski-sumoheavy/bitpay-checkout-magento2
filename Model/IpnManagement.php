@@ -110,9 +110,12 @@ class IpnManagement implements IpnManagementInterface
             if ($quote->getId()) {
                 $quote->setIsActive(1)->setReservedOrderId(null)->save();
                 $this->checkoutSession->replaceQuote($quote);
-                $this->coreRegistry->register('isSecureArea', 'true');
-                $order->delete();
-                $this->coreRegistry->unregister('isSecureArea');
+                $invoiceCloseHandling = $this->config->getBitpayInvoiceCloseHandling();
+                if ($invoiceCloseHandling !== 'keep_order') {
+                    $this->coreRegistry->register('isSecureArea', 'true');
+                    $order->delete();
+                    $this->coreRegistry->unregister('isSecureArea');
+                }
                 $response->setRedirect($redirectUrl)->sendResponse();
 
                 return;

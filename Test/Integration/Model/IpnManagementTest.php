@@ -148,6 +148,7 @@ class IpnManagementTest extends TestCase
 
     /**
      * @magentoDataFixture Bitpay_BPCheckout::Test/Integration/_files/order.php
+     * @magentoConfigFixture current_store payment/bpcheckout/bitpay_invoice_close_handling delete_order
      */
     public function testPostClose()
     {
@@ -158,7 +159,25 @@ class IpnManagementTest extends TestCase
         $this->quoteFactory->create()->loadByIdWithoutStore($quoteId);
 
         $this->ipnManagement->postClose();
-        $this->orderInterface->loadByIncrementId('100000001');
+
+        $this->assertTrue($this->orderInterface->loadByIncrementId('100000001')->isDeleted());
+        $this->assertEquals($quoteId, $this->checkoutSession->getQuoteId());
+    }
+
+    /**
+     * @magentoDataFixture Bitpay_BPCheckout::Test/Integration/_files/order.php
+     * @magentoConfigFixture current_store payment/bpcheckout/bitpay_invoice_close_handling keep_order
+     */
+    public function testPostCloseKeepOrder()
+    {
+        $order = $this->orderInterface->loadByIncrementId('100000001');
+        $this->request->setParam('orderID', $order->getEntityId());
+        $quoteId = $order->getQuoteId();
+        /** @var \Magento\Quote\Model\Quote $quote */
+        $this->quoteFactory->create()->loadByIdWithoutStore($quoteId);
+
+        $this->ipnManagement->postClose();
+        $this->assertFalse($this->orderInterface->loadByIncrementId('100000001')->isDeleted());
         $this->assertEquals($quoteId, $this->checkoutSession->getQuoteId());
     }
 
