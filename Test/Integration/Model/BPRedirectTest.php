@@ -23,6 +23,7 @@ use Magento\Framework\Controller\ResultFactory;
 use Magento\Sales\Model\OrderRepository;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 use Magento\Framework\Encryption\EncryptorInterface;
 
 /**
@@ -91,7 +92,7 @@ class BPRedirectTest extends TestCase
      */
     private $resultFactory;
     /**
-     * @var Client $client
+     * @var Client|MockObject $client
      */
     private $client;
 
@@ -117,16 +118,25 @@ class BPRedirectTest extends TestCase
         $this->orderInterface = $this->objectManager->get(OrderInterface::class);
         $this->config = $this->objectManager->get(Config::class);
         $this->transactionRepository = $this->objectManager->get(TransactionRepository::class);
+        /**
+         * @var Invoice|MockObject
+         */
         $this->invoice = $this->getMockBuilder(Invoice::class)->disableOriginalConstructor()->getMock();
         $this->messageManager = $this->objectManager->get(Manager::class);
         $this->registry = $this->objectManager->get(Registry::class);
         $this->url = $this->objectManager->get(UrlInterface::class);
         $this->logger = $this->objectManager->get(Logger::class);
         $this->resultFactory = $this->objectManager->get(ResultFactory::class);
+        /**
+         * @var Client|MockObject
+         */
         $this->client = $this->getMockBuilder(Client::class)->disableOriginalConstructor()->getMock();
         $this->orderRepository = $this->objectManager->get(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->objectManager->get(BitpayInvoiceRepository::class);
         $this->bitpayInvoiceRepository = $this->objectManager->get(BitpayInvoiceRepository::class);
+        /**
+         * @var EncryptorInterface|MockObject
+         */
         $this->encryptor = $this->getMockBuilder(EncryptorInterface::class)
              ->disableOriginalConstructor()
              ->getMock();
@@ -196,7 +206,6 @@ class BPRedirectTest extends TestCase
         $this->assertEquals('100000001', $result[0]['order_id']);
         $this->assertEquals('new', $result[0]['transaction_status']);
         $this->assertEquals('test', $this->config->getBitpayEnv());
-        $this->assertEquals('redirect', $this->config->getBitpayUx());
         $this->assertEquals($bitpayMethodCode, $methodCode);
     }
 

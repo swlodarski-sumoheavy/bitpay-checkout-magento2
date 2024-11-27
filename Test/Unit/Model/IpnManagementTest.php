@@ -8,23 +8,21 @@ use Bitpay\BPCheckout\Model\Client;
 use Bitpay\BPCheckout\Model\Config;
 use Bitpay\BPCheckout\Model\Invoice;
 use Bitpay\BPCheckout\Model\IpnManagement;
-use Bitpay\BPCheckout\Api\IpnManagementInterface;
+use Bitpay\BPCheckout\Model\Ipn\WebhookVerifier;
 use Bitpay\BPCheckout\Logger\Logger;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
+use Bitpay\BPCheckout\Model\BitpayInvoiceRepository;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
-use Hoa\Iterator\Mock;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ResponseFactory;
-use Magento\Framework\App\Response;
-use Magento\Framework\DataObject;
+use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
 use Magento\Framework\Webapi\Rest\Request;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteFactory;
-use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Order;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -55,9 +53,9 @@ class IpnManagementTest extends TestCase
     private $quoteFactory;
 
     /**
-     * @var OrderInterface|MockObject
+     * @var OrderFactory|MockObject
      */
-    private $orderInterface;
+    private $orderFactory;
 
     /**
      * @var Registry|MockObject
@@ -100,14 +98,29 @@ class IpnManagementTest extends TestCase
     private $ipnManagement;
 
     /**
-     * @var Client $client
+     * @var Client|mockObject $client
      */
     private $client;
 
     /**
-     * @var \Magento\Framework\Webapi\Rest\Response $response
+     * @var \Magento\Framework\Webapi\Rest\Response|MockObject $response
      */
     private $response;
+
+    /**
+     * @var BitpayInvoiceRepository|MockObject $bitpayInvoiceRepository
+     */
+    private $bitpayInvoiceRepository;
+
+    /**
+     * @var EncryptorInterface|MockObject $encryptor
+     */
+    private $encryptor;
+
+    /**
+     * @var WebhookVerifier|MockObject $webhookVerifier
+     */
+    protected $webhookVerifier;
 
     public function setUp(): void
     {
@@ -115,7 +128,7 @@ class IpnManagementTest extends TestCase
         $this->responseFactory = $this->getMock(ResponseFactory::class);
         $this->url = $this->getMock(UrlInterface::class);
         $this->quoteFactory = $this->getMock(QuoteFactory::class);
-        $this->orderInterface = $this->getMock(\Magento\Sales\Model\Order::class);
+        $this->orderFactory = $this->getMock(\Magento\Sales\Model\OrderFactory::class);
         $this->checkoutSession = $this->getMock(Session::class);
         $this->logger = $this->getMock(Logger::class);
         $this->config = $this->getMock(Config::class);
@@ -125,6 +138,9 @@ class IpnManagementTest extends TestCase
         $this->request = $this->getMock(Request::class);
         $this->client = $this->getMock(Client::class);
         $this->response = $this->getMock(\Magento\Framework\Webapi\Rest\Response::class);
+        $this->bitpayInvoiceRepository = $this->getMock(BitpayInvoiceRepository::class);
+        $this->encryptor = $this->getMock(EncryptorInterface::class);
+        $this->webhookVerifier = $this->getMock(WebhookVerifier::class);
         $this->ipnManagement = $this->getClass();
     }
 
@@ -137,11 +153,17 @@ class IpnManagementTest extends TestCase
         $order = $this->getMock(Order::class);
         $orderId = '000000012';
         $this->url->expects($this->once())->method('getUrl')->willReturn($cartUrl);
-
+        $order->expects($this->once())
+            ->method('loadByIncrementId')
+            ->with($orderId)
+            ->willReturnSelf();
         $this->request->expects($this->once())->method('getParam')->willReturn($orderId);
         $this->responseFactory->expects($this->once())->method('create')->willReturn($response);
         $order->expects($this->once())->method('getData')->willReturn(['quote_id' => $quoteId]);
-        $this->orderInterface->expects($this->once())->method('loadByIncrementId')->willReturn($order);
+
+        $this->orderFactory->expects($this->once())
+            ->method('create')
+            ->willReturn($order);
 
         $quote->expects($this->once())->method('loadByIdWithoutStore')->willReturnSelf();
         $quote->expects($this->once())->method('getId')->willReturn($quoteId);
@@ -165,11 +187,16 @@ class IpnManagementTest extends TestCase
         $this->url->expects($this->once())
             ->method('getUrl')
             ->willReturn('http://localhost/checkout/cart?reload=1');
-
+        $order->expects($this->once())
+            ->method('loadByIncrementId')
+            ->with($orderId)
+            ->willReturnSelf();
         $this->responseFactory->expects($this->once())->method('create')->willReturn($response);
         $this->request->expects($this->once())->method('getParam')->willReturn($orderId);
         $order->expects($this->once())->method('getData')->willReturn(['quote_id' => $quoteId]);
-        $this->orderInterface->expects($this->once())->method('loadByIncrementId')->willReturn($order);
+        $this->orderFactory->expects($this->once())
+            ->method('create')
+            ->willReturn($order);
         $quote->expects($this->once())->method('loadByIdWithoutStore')->willReturnSelf();
         $quote->expects($this->once())->method('getId')->willReturn(null);
         $this->quoteFactory->expects($this->once())->method('create')->willReturn($quote);
@@ -184,13 +211,19 @@ class IpnManagementTest extends TestCase
         $orderId = '000000012';
         $response = $this->getMock(\Magento\Framework\HTTP\PhpEnvironment\Response::class);
         $order = $this->getMock(Order::class);
+        $order->expects($this->once())
+            ->method('loadByIncrementId')
+            ->with($orderId)
+            ->willReturnSelf();
         $this->url->expects($this->once())
             ->method('getUrl')
             ->willReturn('http://localhost/checkout/cart?reload=1');
         $this->responseFactory->expects($this->once())->method('create')->willReturn($response);
         $this->request->expects($this->once())->method('getParam')->willReturn($orderId);
         $order->expects($this->once())->method('getData')->willReturn([]);
-        $this->orderInterface->expects($this->once())->method('loadByIncrementId')->willReturn($order);
+        $this->orderFactory->expects($this->once())
+            ->method('create')
+            ->willReturn($order);
 
         $response->expects($this->once())->method('setRedirect')->willReturnSelf();
 
@@ -312,6 +345,53 @@ class IpnManagementTest extends TestCase
         $this->ipnManagement->postIpn();
     }
 
+    public function testPostIpnHmacVerificationSuccess(): void
+    {
+        $this->bitpayInvoiceRepository->expects($this->once())->method('getByOrderId')->willReturn([
+            'order_id' => 12,
+            'invoice_id' => '12',
+            'expiration_time' => 1726740384932,
+            'acceptance_window'=> '',
+            'bitpay_token' => '0:3:testtokenencoded'
+        ]);
+        $this->encryptor->expects($this->once())->method('decrypt')->willReturn('testtoken');
+        $this->request->expects($this->once())->method('getHeader')->with('x-signature')->willReturn('test');
+        $this->webhookVerifier->expects($this->once())->method('isValidHmac')->willReturn(true);
+        $this->response->expects($this->never())->method('addMessage');
+
+        $this->preparePostIpn('invoice_completed', 'test');
+
+        $this->ipnManagement->postIpn();
+    }
+
+    public function testPostIpnHmacVerificationFailure(): void
+    {
+        $orderInvoiceId = '12';
+        $data = $this->prepareData($orderInvoiceId, 'invoice_completed');
+        $serializer = new Json();
+        $serializerData = $serializer->serialize($data);
+        $this->serializer->expects($this->once())->method('unserialize')->willReturn($data);
+        $this->request->expects($this->once())->method('getContent')->willReturn($serializerData);
+
+        $this->bitpayInvoiceRepository->expects($this->once())->method('getByOrderId')->willReturn([
+            'order_id' => 12,
+            'invoice_id' => '12',
+            'expiration_time' => 1726740384932,
+            'acceptance_window'=> '',
+            'bitpay_token' => '0:3:testtokenencoded'
+        ]);
+        $this->encryptor->expects($this->once())->method('decrypt')->willReturn('testtoken');
+        $this->request->expects($this->once())->method('getHeader')->with('x-signature')->willReturn('test');
+        $this->webhookVerifier->expects($this->once())->method('isValidHmac')->willReturn(false);
+        
+        $this->response->expects($this->once())
+            ->method('addMessage')
+            ->with('HMAC Verification Failed!', 500)
+            ->willReturnSelf();
+
+        $this->ipnManagement->postIpn();
+    }
+
     private function preparePostIpn(string $eventName, string $invoiceStatus): void
     {
         $orderInvoiceId = '12';
@@ -336,7 +416,13 @@ class IpnManagementTest extends TestCase
         $this->config->expects($this->once())->method('getToken')->willReturn('test');
         $this->invoice->expects($this->once())->method('getBPCCheckInvoiceStatus')->willReturn($invoiceStatus);
         $order = $this->getMock(Order::class);
-        $this->orderInterface->expects($this->once())->method('loadByIncrementId')->willReturn($order);
+        $order->expects($this->once())
+            ->method('loadByIncrementId')
+            ->with($data['data']['orderId'])
+            ->willReturnSelf();
+        $this->orderFactory->expects($this->once())
+            ->method('create')
+            ->willReturn($order);
     }
 
     private function getMock(string $className): MockObject
@@ -351,7 +437,7 @@ class IpnManagementTest extends TestCase
             $this->url,
             $this->coreRegistry,
             $this->checkoutSession,
-            $this->orderInterface,
+            $this->orderFactory,
             $this->quoteFactory,
             $this->logger,
             $this->config,
@@ -360,7 +446,10 @@ class IpnManagementTest extends TestCase
             $this->invoice,
             $this->request,
             $this->client,
-            $this->response
+            $this->response,
+            $this->bitpayInvoiceRepository,
+            $this->encryptor,
+            $this->webhookVerifier
         );
     }
 

@@ -9,21 +9,24 @@ use Bitpay\BPCheckout\Model\IpnManagement;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
 use Magento\Framework\ObjectManagerInterface;
-use Bitpay\BPCheckout\Api\IpnManagementInterface;
 use Bitpay\BPCheckout\Logger\Logger;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
+use Bitpay\BPCheckout\Model\BitpayInvoiceRepository;
+use Bitpay\BPCheckout\Model\Ipn\WebhookVerifier;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ResponseFactory;
 use Magento\Framework\DataObject;
+use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
 use Magento\Framework\Webapi\Rest\Request;
 use Magento\Framework\Webapi\Rest\Response;
 use Magento\Quote\Model\QuoteFactory;
+use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
  * @SuppressWarnings(PHPMD.TooManyFields)
@@ -42,7 +45,7 @@ class IpnManagementTest extends TestCase
     private $responseFactory;
 
     /**
-     * @var OrderInterface $url
+     * @var UrlInterface $url
      */
     private $url;
 
@@ -57,9 +60,9 @@ class IpnManagementTest extends TestCase
     private $quoteFactory;
 
     /**
-     * @var OrderInterface $orderInterface
+     * @var OrderFactory|MockObject $orderFactory
      */
-    private $orderInterface;
+    private $orderFactory;
 
     /**
      * @var Registry $coreRegistry
@@ -87,7 +90,7 @@ class IpnManagementTest extends TestCase
     private $transactionRepository;
 
     /**
-     * @var Invoice|\PHPUnit\Framework\MockObject\MockObject $invoice
+     * @var Invoice|MockObject $invoice
      */
     private $invoice;
 
@@ -102,7 +105,7 @@ class IpnManagementTest extends TestCase
     private $objectManager;
 
     /**
-     * @var Client $client
+     * @var Client|MockObject $client
      */
     private $client;
 
@@ -111,6 +114,21 @@ class IpnManagementTest extends TestCase
      */
     private $response;
 
+    /**
+     * @var BitpayInvoiceRepository|MockObject $bitpayInvoiceRepository
+     */
+    private $bitpayInvoiceRepository;
+
+    /**
+     * @var EncryptorInterface|MockObject $encryptor
+     */
+    private $encryptor;
+
+    /**
+     * @var WebhookVerifier|MockObject $webhookVerifier
+     */
+    protected $webhookVerifier;
+
     public function setUp(): void
     {
         $this->objectManager = Bootstrap::getObjectManager();
@@ -118,22 +136,31 @@ class IpnManagementTest extends TestCase
         $this->responseFactory = $this->objectManager->get(ResponseFactory::class);
         $this->url = $this->objectManager->get(UrlInterface::class);
         $this->quoteFactory = $this->objectManager->get(QuoteFactory::class);
-        $this->orderInterface = $this->objectManager->get(OrderInterface::class);
+        $this->orderFactory = $this->objectManager->get(OrderFactory::class);
         $this->checkoutSession = $this->objectManager->get(Session::class);
         $this->logger = $this->objectManager->get(Logger::class);
         $this->config = $this->objectManager->get(Config::class);
         $this->serializer = $this->objectManager->get(Json::class);
         $this->transactionRepository = $this->objectManager->get(TransactionRepository::class);
+        /**
+         * @var Invoice|MockObject
+         */
         $this->invoice = $this->getMockBuilder(Invoice::class)->disableOriginalConstructor()->getMock();
         $this->request = $this->objectManager->get(Request::class);
+        /**
+         * @var Client|MockObject
+         */
         $this->client = $this->getMockBuilder(Client::class)->disableOriginalConstructor()->getMock();
         $this->response = $this->objectManager->get(Response::class);
+        $this->bitpayInvoiceRepository = $this->objectManager->get(BitpayInvoiceRepository::class);
+        $this->encryptor =$this->objectManager->get(EncryptorInterface::class);
+        $this->webhookVerifier = $this->objectManager->get(WebhookVerifier::class);
         $this->ipnManagement = new IpnManagement(
             $this->responseFactory,
             $this->url,
             $this->coreRegistry,
             $this->checkoutSession,
-            $this->orderInterface,
+            $this->orderFactory,
             $this->quoteFactory,
             $this->logger,
             $this->config,
@@ -142,7 +169,10 @@ class IpnManagementTest extends TestCase
             $this->invoice,
             $this->request,
             $this->client,
-            $this->response
+            $this->response,
+            $this->bitpayInvoiceRepository,
+            $this->encryptor,
+            $this->webhookVerifier,
         );
     }
 
@@ -151,14 +181,14 @@ class IpnManagementTest extends TestCase
      */
     public function testPostClose()
     {
-        $order = $this->orderInterface->loadByIncrementId('100000001');
-        $this->request->setParam('orderID', $order->getEntityId());
+        $order = $this->orderFactory->create()->loadByIncrementId('100000001');
+        $this->request->setParam('orderID', $order->getIncrementId());
         $quoteId = $order->getQuoteId();
         /** @var \Magento\Quote\Model\Quote $quote */
         $this->quoteFactory->create()->loadByIdWithoutStore($quoteId);
 
         $this->ipnManagement->postClose();
-        $this->orderInterface->loadByIncrementId('100000001');
+        $this->orderFactory->create()->loadByIncrementId('100000001');
         $this->assertEquals($quoteId, $this->checkoutSession->getQuoteId());
     }
 
@@ -198,7 +228,7 @@ class IpnManagementTest extends TestCase
 
         $this->ipnManagement->postIpn();
 
-        $order = $this->orderInterface->loadByIncrementId($orderId);
+        $order = $this->orderFactory->create()->loadByIncrementId('100000001');
         $result = $this->transactionRepository->findBy($orderId, $orderInvoiceId);
 
         $this->assertEquals('complete', $result[0]['transaction_status']);

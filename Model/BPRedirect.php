@@ -147,7 +147,8 @@ class BPRedirect
                 $order->getId(),
                 $invoiceID,
                 $invoice->getExpirationTime(),
-                $invoice->getAcceptanceWindow()
+                $invoice->getAcceptanceWindow(),
+                $this->encryptor->encrypt($this->config->getToken())
             );
             $this->transactionRepository->add($incrementId, $invoiceID, 'new');
         
