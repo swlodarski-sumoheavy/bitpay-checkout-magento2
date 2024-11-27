@@ -134,6 +134,12 @@
                     <source_model>Bitpay\BPCheckout\Model\Config\Source\CheckoutSuccess</source_model>
                 </field>
 
+                <field id="bitpay_invoice_close_handling" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Invoice Close Handling</label>
+                    <comment><![CDATA[If this is set to <b>Delete Order</b>, then the order will be deleted when the user closes the BitPay Invoice before paying the invoice.<br><br>If this is set to <b>Keep Order</b>, then the order will not be deleted.]]></comment>
+                    <source_model>Bitpay\BPCheckout\Model\Config\Source\InvoiceCloseHandling</source_model>
+                </field>
+
                 <field id="specificcountry" translate="label" type="multiselect" sortOrder="41" showInDefault="1"
                     showInWebsite="1" showInStore="0">
                     <label>Payment from Specific Countries</label>
