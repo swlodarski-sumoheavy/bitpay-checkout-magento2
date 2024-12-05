@@ -9,9 +9,8 @@ use Bitpay\BPCheckout\Model\IpnManagement;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
 use Magento\Framework\ObjectManagerInterface;
-use Bitpay\BPCheckout\Api\IpnManagementInterface;
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ResponseFactory;
 use Magento\Framework\DataObject;
@@ -42,7 +41,7 @@ class IpnManagementTest extends TestCase
     private $responseFactory;
 
     /**
-     * @var OrderInterface $url
+     * @var UrlInterface $url
      */
     private $url;
 
@@ -87,7 +86,7 @@ class IpnManagementTest extends TestCase
     private $transactionRepository;
 
     /**
-     * @var Invoice|\PHPUnit\Framework\MockObject\MockObject $invoice
+     * @var Invoice|MockObject $invoice
      */
     private $invoice;
 
@@ -111,6 +110,11 @@ class IpnManagementTest extends TestCase
      */
     private $response;
 
+    /**
+     * @var ReturnHash $returnHash
+     */
+    private ReturnHash $returnHash;
+
     public function setUp(): void
     {
         $this->objectManager = Bootstrap::getObjectManager();
@@ -128,6 +132,8 @@ class IpnManagementTest extends TestCase
         $this->request = $this->objectManager->get(Request::class);
         $this->client = $this->getMockBuilder(Client::class)->disableOriginalConstructor()->getMock();
         $this->response = $this->objectManager->get(Response::class);
+        $this->returnHash = $this->objectManager->get(ReturnHash::class);
+        
         $this->ipnManagement = new IpnManagement(
             $this->responseFactory,
             $this->url,
@@ -142,7 +148,8 @@ class IpnManagementTest extends TestCase
             $this->invoice,
             $this->request,
             $this->client,
-            $this->response
+            $this->response,
+            $this->returnHash
         );
     }
 

@@ -64,6 +64,32 @@ class Transaction extends AbstractDb
     }
 
     /**
+     * Find transaction by order_id and transaction_status
+     *
+     * @param string $orderId
+     * @param string $transactionStatus
+     * @return array|null
+     */
+    public function findByOrderIdAndTransactionStatus(string $orderId, string $transactionStatus): ?array
+    {
+        $connection = $this->getConnection();
+        $tableName = $connection->getTableName(self::TABLE_NAME);
+
+        $sql = $connection->select()
+            ->from($tableName)
+            ->where('order_id = ?', $orderId)
+            ->where('transaction_status = ?', $transactionStatus);
+
+        $row = $connection->fetchAll($sql);
+
+        if (!$row) {
+            return null;
+        }
+
+        return $row;
+    }
+
+    /**
      * Update transaction
      *
      * @param string $field

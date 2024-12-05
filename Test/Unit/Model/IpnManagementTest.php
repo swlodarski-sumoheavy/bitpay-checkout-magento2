@@ -3,21 +3,16 @@ declare(strict_types=1);
 
 namespace Bitpay\BPCheckout\Test\Unit\Model;
 
-use Bitpay\BPCheckout\Exception\IPNValidationException;
 use Bitpay\BPCheckout\Model\Client;
 use Bitpay\BPCheckout\Model\Config;
 use Bitpay\BPCheckout\Model\Invoice;
 use Bitpay\BPCheckout\Model\IpnManagement;
-use Bitpay\BPCheckout\Api\IpnManagementInterface;
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
-use Hoa\Iterator\Mock;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ResponseFactory;
-use Magento\Framework\App\Response;
-use Magento\Framework\DataObject;
 use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
@@ -109,6 +104,11 @@ class IpnManagementTest extends TestCase
      */
     private $response;
 
+    /**
+     * @var ReturnHash|MockObject
+     */
+    private $returnHashHelper;
+
     public function setUp(): void
     {
         $this->coreRegistry = $this->getMock(Registry::class);
@@ -125,6 +125,7 @@ class IpnManagementTest extends TestCase
         $this->request = $this->getMock(Request::class);
         $this->client = $this->getMock(Client::class);
         $this->response = $this->getMock(\Magento\Framework\Webapi\Rest\Response::class);
+        $this->returnHashHelper = $this->getMock(ReturnHash::class);
         $this->ipnManagement = $this->getClass();
     }
 
@@ -160,9 +161,7 @@ class IpnManagementTest extends TestCase
     {
         $this->config->expects($this->once())->method('getBitpayInvoiceCloseHandling')->willReturn('keep_order');
 
-        $quoteId = 21;
         $cartUrl = 'http://localhost/checkout/cart?reload=1';
-        $quote = $this->getMock(Quote::class);
         $response = $this->getMock(\Magento\Framework\HTTP\PhpEnvironment\Response::class);
         $order = $this->getMock(Order::class);
         $orderId = '000000012';
@@ -170,15 +169,15 @@ class IpnManagementTest extends TestCase
 
         $this->request->expects($this->once())->method('getParam')->willReturn($orderId);
         $this->responseFactory->expects($this->once())->method('create')->willReturn($response);
-        $order->expects($this->once())->method('getData')->willReturn(['quote_id' => $quoteId]);
         $this->orderInterface->expects($this->once())->method('loadByIncrementId')->willReturn($order);
 
-        $quote->expects($this->once())->method('loadByIdWithoutStore')->willReturnSelf();
-        $quote->expects($this->once())->method('getId')->willReturn($quoteId);
-        $quote->expects($this->once())->method('setIsActive')->willReturnSelf();
-        $quote->expects($this->once())->method('setReservedOrderId')->willReturnSelf();
-
-        $this->quoteFactory->expects($this->once())->method('create')->willReturn($quote);
+        $this->checkoutSession
+            ->method('__call')
+            ->willReturnCallback(fn($operation) => match ([$operation]) {
+                ['setLastSuccessQuoteId'] => $this->checkoutSession,
+                ['setLastQuoteId'] => $this->checkoutSession,
+                ['setLastOrderId'] => $this->checkoutSession
+            });
 
         $response->expects($this->once())->method('setRedirect')->willReturnSelf();
         $order->expects($this->never())->method('delete')->willReturnSelf();
@@ -428,7 +427,8 @@ class IpnManagementTest extends TestCase
             $this->invoice,
             $this->request,
             $this->client,
-            $this->response
+            $this->response,
+            $this->returnHashHelper
         );
     }
 
