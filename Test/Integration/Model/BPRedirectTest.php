@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Bitpay\BPCheckout\Test\Integration\Model;
 
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Model\BitpayInvoiceRepository;
 use Bitpay\BPCheckout\Model\BPRedirect;
 use Bitpay\BPCheckout\Model\Client;
@@ -97,8 +98,9 @@ class BPRedirectTest extends TestCase
      * @var ResultFactory $resultFactory
      */
     private $resultFactory;
+
     /**
-     * @var Client $client
+     * @var Client|MockObject $client
      */
     private $client;
 
@@ -111,6 +113,11 @@ class BPRedirectTest extends TestCase
      * @var BitpayInvoiceRepository $bitpayInvoiceRepository
      */
     private $bitpayInvoiceRepository;
+
+    /**
+     * @var ReturnHash $returnHash
+     */
+    private $returnHash;
 
     public function setUp(): void
     {
@@ -128,6 +135,7 @@ class BPRedirectTest extends TestCase
         $this->client = $this->getMockBuilder(Client::class)->disableOriginalConstructor()->getMock();
         $this->orderRepository = $this->objectManager->get(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->objectManager->get(BitpayInvoiceRepository::class);
+        $this->returnHash = $this->objectManager->get(ReturnHash::class);
 
         $this->bpRedirect = new BPRedirect(
             $this->checkoutSession,
@@ -142,7 +150,8 @@ class BPRedirectTest extends TestCase
             $this->resultFactory,
             $this->client,
             $this->orderRepository,
-            $this->bitpayInvoiceRepository
+            $this->bitpayInvoiceRepository,
+            $this->returnHash
         );
     }
 
@@ -178,7 +187,8 @@ class BPRedirectTest extends TestCase
         $this->invoice->expects($this->once())->method('BPCCreateInvoice')
             ->willReturn($invoice);
 
-        $this->bpRedirect->execute();
+        $defaultResult = $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_PAGE);
+        $this->bpRedirect->execute($defaultResult);
         $customerInfo = $this->checkoutSession->getCustomerInfo();
 
         $this->assertEquals('customer@example.com', $customerInfo['email']);
@@ -218,8 +228,10 @@ class BPRedirectTest extends TestCase
 
         $this->invoice->expects($this->once())->method('BPCCreateInvoice')
             ->willThrowException(new LocalizedException(new Phrase('Invalid token')));
+        
+        $defaultResult = $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_PAGE);
 
-        $this->bpRedirect->execute();
+        $this->bpRedirect->execute($defaultResult);
         $this->assertEquals(
             'We are unable to place your Order at this time',
             $this->messageManager->getMessages()->getLastAddedMessage()->getText()

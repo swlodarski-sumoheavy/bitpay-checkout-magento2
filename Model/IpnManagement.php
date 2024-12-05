@@ -5,6 +5,7 @@ namespace Bitpay\BPCheckout\Model;
 
 use Bitpay\BPCheckout\Api\IpnManagementInterface;
 use Bitpay\BPCheckout\Exception\IPNValidationException;
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
 use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Bitpay\BPCheckout\Model\Ipn\Validator;
@@ -41,6 +42,7 @@ class IpnManagement implements IpnManagementInterface
     protected Request $request;
     protected Client $client;
     protected Response $response;
+    protected ReturnHash $returnHashHelper;
 
     /**
      * @param ResponseFactory $responseFactory
@@ -57,6 +59,7 @@ class IpnManagement implements IpnManagementInterface
      * @param Request $request
      * @param Client $client
      * @param Response $response
+     * @param ReturnHash $returnHashHelper
      * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
     public function __construct(
@@ -73,7 +76,8 @@ class IpnManagement implements IpnManagementInterface
         Invoice $invoice,
         Request $request,
         Client $client,
-        Response $response
+        Response $response,
+        ReturnHash $returnHashHelper
     ) {
         $this->coreRegistry = $registry;
         $this->responseFactory = $responseFactory;
@@ -89,6 +93,7 @@ class IpnManagement implements IpnManagementInterface
         $this->request = $request;
         $this->client = $client;
         $this->response = $response;
+        $this->returnHashHelper = $returnHashHelper;
     }
 
     /**
@@ -104,21 +109,30 @@ class IpnManagement implements IpnManagementInterface
         try {
             $orderID = $this->request->getParam('orderID', null);
             $order = $this->orderInterface->loadByIncrementId($orderID);
-            $orderData = $order->getData();
-            $quoteID = $orderData['quote_id'];
-            $quote = $this->quoteFactory->create()->loadByIdWithoutStore($quoteID);
-            if ($quote->getId()) {
-                $quote->setIsActive(1)->setReservedOrderId(null)->save();
-                $this->checkoutSession->replaceQuote($quote);
-                $invoiceCloseHandling = $this->config->getBitpayInvoiceCloseHandling();
-                if ($invoiceCloseHandling !== 'keep_order') {
-                    $this->coreRegistry->register('isSecureArea', 'true');
-                    $order->delete();
-                    $this->coreRegistry->unregister('isSecureArea');
-                }
-                $response->setRedirect($redirectUrl)->sendResponse();
+            $invoiceCloseHandling = $this->config->getBitpayInvoiceCloseHandling();
+            if ($this->config->getBitpayCheckoutSuccess() === 'standard' && $invoiceCloseHandling === 'keep_order') {
+                $this->checkoutSession->setLastSuccessQuoteId($order->getQuoteId())
+                    ->setLastQuoteId($order->getQuoteId())
+                    ->setLastOrderId($order->getEntityId());
 
-                return;
+                $returnHash = $this->returnHashHelper->generate($order);
+                $redirectUrl = $this->url->getUrl(
+                    'checkout/onepage/success',
+                    ['_query' => ['return_id' => $returnHash]]
+                );
+            } else {
+                $orderData = $order->getData();
+                $quoteID = $orderData['quote_id'];
+                $quote = $this->quoteFactory->create()->loadByIdWithoutStore($quoteID);
+                if ($quote->getId()) {
+                    $quote->setIsActive(1)->setReservedOrderId(null)->save();
+                    $this->checkoutSession->replaceQuote($quote);
+                    if ($invoiceCloseHandling !== 'keep_order') {
+                        $this->coreRegistry->register('isSecureArea', 'true');
+                        $order->delete();
+                        $this->coreRegistry->unregister('isSecureArea');
+                    }
+                }
             }
 
             $response->setRedirect($redirectUrl)->sendResponse();
