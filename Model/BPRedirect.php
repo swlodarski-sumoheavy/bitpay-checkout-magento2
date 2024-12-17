@@ -1,6 +1,7 @@
 <?php
 namespace Bitpay\BPCheckout\Model;
 
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\DataObject;
@@ -35,7 +36,7 @@ class BPRedirect
     protected Client $client;
     protected OrderRepository $orderRepository;
     protected BitpayInvoiceRepository $bitpayInvoiceRepository;
-    protected EncryptorInterface $encryptor;
+    protected ReturnHash $returnHashHelper;
 
     /**
      * @param Session $checkoutSession
@@ -51,7 +52,7 @@ class BPRedirect
      * @param Client $client
      * @param OrderRepository $orderRepository
      * @param BitpayInvoiceRepository $bitpayInvoiceRepository
-     * @param EncryptorInterface $encryptor
+     * @param ReturnHash $returnHashHelper
      * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
     public function __construct(
@@ -68,7 +69,7 @@ class BPRedirect
         Client $client,
         OrderRepository $orderRepository,
         BitpayInvoiceRepository $bitpayInvoiceRepository,
-        EncryptorInterface $encryptor,
+        ReturnHash $returnHashHelper
     ) {
         $this->checkoutSession = $checkoutSession;
         $this->orderInterface = $orderInterface;
@@ -83,7 +84,7 @@ class BPRedirect
         $this->client = $client;
         $this->orderRepository = $orderRepository;
         $this->bitpayInvoiceRepository = $bitpayInvoiceRepository;
-        $this->encryptor = $encryptor;
+        $this->returnHashHelper = $returnHashHelper;
     }
 
     /**
@@ -114,9 +115,10 @@ class BPRedirect
         }
 
         $isStandardCheckoutSuccess = $this->config->getBitpayCheckoutSuccess() === 'standard';
-        $returnHash = $this->encryptor->hash("$incrementId:{$order->getCustomerEmail()}:{$order->getProtectCode()}");
+
         if ($isStandardCheckoutSuccess && $returnId) {
-            if ($returnId !== $returnHash) {
+            $returnHash = $this->returnHashHelper->generate($order);
+            if (!$this->returnHashHelper->isValid($returnId, $order)) {
                 $this->checkoutSession->clearHelperData();
 
                 return $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT)
@@ -127,6 +129,7 @@ class BPRedirect
         }
 
         try {
+            $returnHash = $this->returnHashHelper->generate($order);
             $baseUrl = $this->config->getBaseUrl();
             $order = $this->setToPendingAndOverrideMagentoStatus($order);
             $redirectUrl = $this->url->getUrl('bitpay-invoice', ['_query' => ['order_id' => $incrementId]]);

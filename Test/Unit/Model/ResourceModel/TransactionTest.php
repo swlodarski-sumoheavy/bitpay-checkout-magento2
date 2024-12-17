@@ -28,6 +28,11 @@ class TransactionTest extends TestCase
      */
     private $adapter;
 
+    /**
+     * @var Context|MockObject $context
+     */
+    private $context;
+
     public function setUp(): void
     {
         $this->prepareContext();

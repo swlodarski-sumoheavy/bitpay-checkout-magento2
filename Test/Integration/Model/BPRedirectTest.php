@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Bitpay\BPCheckout\Test\Integration\Model;
 
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Model\BitpayInvoiceRepository;
 use Bitpay\BPCheckout\Model\BPRedirect;
 use Bitpay\BPCheckout\Model\Client;
@@ -90,8 +91,9 @@ class BPRedirectTest extends TestCase
      * @var ResultFactory $resultFactory
      */
     private $resultFactory;
+
     /**
-     * @var Client $client
+     * @var Client|MockObject $client
      */
     private $client;
 
@@ -109,7 +111,6 @@ class BPRedirectTest extends TestCase
      * @var EncryptorInterface|MockObject $encryptor
      */
     private $encryptor;
-
     public function setUp(): void
     {
         $this->objectManager =  Bootstrap::getObjectManager();
@@ -222,8 +223,9 @@ class BPRedirectTest extends TestCase
 
         $this->invoice->expects($this->once())->method('BPCCreateInvoice')
             ->willThrowException(new LocalizedException(new Phrase('Invalid token')));
-
+        
         $defaultResult = $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_PAGE);
+
         $this->bpRedirect->execute($defaultResult);
         $this->assertEquals(
             'We are unable to place your Order at this time',
