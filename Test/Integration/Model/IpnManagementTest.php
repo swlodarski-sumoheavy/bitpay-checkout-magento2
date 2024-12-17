@@ -9,9 +9,8 @@ use Bitpay\BPCheckout\Model\IpnManagement;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
 use Magento\Framework\ObjectManagerInterface;
-use Bitpay\BPCheckout\Api\IpnManagementInterface;
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ResponseFactory;
 use Magento\Framework\DataObject;
@@ -42,7 +41,7 @@ class IpnManagementTest extends TestCase
     private $responseFactory;
 
     /**
-     * @var OrderInterface $url
+     * @var UrlInterface $url
      */
     private $url;
 
@@ -87,7 +86,7 @@ class IpnManagementTest extends TestCase
     private $transactionRepository;
 
     /**
-     * @var Invoice|\PHPUnit\Framework\MockObject\MockObject $invoice
+     * @var Invoice|MockObject $invoice
      */
     private $invoice;
 
@@ -111,6 +110,11 @@ class IpnManagementTest extends TestCase
      */
     private $response;
 
+    /**
+     * @var ReturnHash $returnHash
+     */
+    private ReturnHash $returnHash;
+
     public function setUp(): void
     {
         $this->objectManager = Bootstrap::getObjectManager();
@@ -128,6 +132,8 @@ class IpnManagementTest extends TestCase
         $this->request = $this->objectManager->get(Request::class);
         $this->client = $this->getMockBuilder(Client::class)->disableOriginalConstructor()->getMock();
         $this->response = $this->objectManager->get(Response::class);
+        $this->returnHash = $this->objectManager->get(ReturnHash::class);
+        
         $this->ipnManagement = new IpnManagement(
             $this->responseFactory,
             $this->url,
@@ -142,12 +148,14 @@ class IpnManagementTest extends TestCase
             $this->invoice,
             $this->request,
             $this->client,
-            $this->response
+            $this->response,
+            $this->returnHash
         );
     }
 
     /**
      * @magentoDataFixture Bitpay_BPCheckout::Test/Integration/_files/order.php
+     * @magentoConfigFixture current_store payment/bpcheckout/bitpay_invoice_close_handling delete_order
      */
     public function testPostClose()
     {
@@ -158,7 +166,25 @@ class IpnManagementTest extends TestCase
         $this->quoteFactory->create()->loadByIdWithoutStore($quoteId);
 
         $this->ipnManagement->postClose();
-        $this->orderInterface->loadByIncrementId('100000001');
+
+        $this->assertTrue($this->orderInterface->loadByIncrementId('100000001')->isDeleted());
+        $this->assertEquals($quoteId, $this->checkoutSession->getQuoteId());
+    }
+
+    /**
+     * @magentoDataFixture Bitpay_BPCheckout::Test/Integration/_files/order.php
+     * @magentoConfigFixture current_store payment/bpcheckout/bitpay_invoice_close_handling keep_order
+     */
+    public function testPostCloseKeepOrder()
+    {
+        $order = $this->orderInterface->loadByIncrementId('100000001');
+        $this->request->setParam('orderID', $order->getEntityId());
+        $quoteId = $order->getQuoteId();
+        /** @var \Magento\Quote\Model\Quote $quote */
+        $this->quoteFactory->create()->loadByIdWithoutStore($quoteId);
+
+        $this->ipnManagement->postClose();
+        $this->assertFalse($this->orderInterface->loadByIncrementId('100000001')->isDeleted());
         $this->assertEquals($quoteId, $this->checkoutSession->getQuoteId());
     }
 

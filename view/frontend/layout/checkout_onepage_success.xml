@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" layout="1column"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="Bitpay\BPCheckout\Block\Checkout\Onepage\Success\PayButton" name="checkout.order.success.bitpay.paybutton"
+                template="Bitpay_BPCheckout::checkout/order/success/pay-button.phtml" after="-">
+            </block>
+        </referenceContainer>
+    </body>
+</page>

@@ -3,21 +3,16 @@ declare(strict_types=1);
 
 namespace Bitpay\BPCheckout\Test\Unit\Model;
 
-use Bitpay\BPCheckout\Exception\IPNValidationException;
 use Bitpay\BPCheckout\Model\Client;
 use Bitpay\BPCheckout\Model\Config;
 use Bitpay\BPCheckout\Model\Invoice;
 use Bitpay\BPCheckout\Model\IpnManagement;
-use Bitpay\BPCheckout\Api\IpnManagementInterface;
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
-use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Bitpay\BPCheckout\Model\TransactionRepository;
 use BitPaySDK\Model\Invoice\Buyer;
-use Hoa\Iterator\Mock;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ResponseFactory;
-use Magento\Framework\App\Response;
-use Magento\Framework\DataObject;
 use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
@@ -100,14 +95,19 @@ class IpnManagementTest extends TestCase
     private $ipnManagement;
 
     /**
-     * @var Client $client
+     * @var Client|MockObject
      */
     private $client;
 
     /**
-     * @var \Magento\Framework\Webapi\Rest\Response $response
+     * @var \Magento\Framework\Webapi\Rest\Response|MockObject
      */
     private $response;
+
+    /**
+     * @var ReturnHash|MockObject
+     */
+    private $returnHashHelper;
 
     public function setUp(): void
     {
@@ -125,6 +125,7 @@ class IpnManagementTest extends TestCase
         $this->request = $this->getMock(Request::class);
         $this->client = $this->getMock(Client::class);
         $this->response = $this->getMock(\Magento\Framework\Webapi\Rest\Response::class);
+        $this->returnHashHelper = $this->getMock(ReturnHash::class);
         $this->ipnManagement = $this->getClass();
     }
 
@@ -151,6 +152,35 @@ class IpnManagementTest extends TestCase
         $this->quoteFactory->expects($this->once())->method('create')->willReturn($quote);
 
         $response->expects($this->once())->method('setRedirect')->willReturnSelf();
+        $order->expects($this->once())->method('delete')->willReturnSelf();
+
+        $this->ipnManagement->postClose();
+    }
+
+    public function testPostCloseKeepOrder(): void
+    {
+        $this->config->expects($this->once())->method('getBitpayInvoiceCloseHandling')->willReturn('keep_order');
+
+        $cartUrl = 'http://localhost/checkout/cart?reload=1';
+        $response = $this->getMock(\Magento\Framework\HTTP\PhpEnvironment\Response::class);
+        $order = $this->getMock(Order::class);
+        $orderId = '000000012';
+        $this->url->expects($this->once())->method('getUrl')->willReturn($cartUrl);
+
+        $this->request->expects($this->once())->method('getParam')->willReturn($orderId);
+        $this->responseFactory->expects($this->once())->method('create')->willReturn($response);
+        $this->orderInterface->expects($this->once())->method('loadByIncrementId')->willReturn($order);
+
+        $this->checkoutSession
+            ->method('__call')
+            ->willReturnCallback(fn($operation) => match ([$operation]) {
+                ['setLastSuccessQuoteId'] => $this->checkoutSession,
+                ['setLastQuoteId'] => $this->checkoutSession,
+                ['setLastOrderId'] => $this->checkoutSession
+            });
+
+        $response->expects($this->once())->method('setRedirect')->willReturnSelf();
+        $order->expects($this->never())->method('delete')->willReturnSelf();
 
         $this->ipnManagement->postClose();
     }
@@ -299,8 +329,45 @@ class IpnManagementTest extends TestCase
         $client->expects($this->once())->method('getInvoice')->willReturn($invoice);
         $this->client->expects($this->once())->method('initialize')->willReturn($client);
         $this->transactionRepository->expects($this->once())->method('findBy')->willReturn([]);
-        $this->throwException(new IPNValidationException('Email from IPN data (\'test@example.com\') does not' .
-            'match with email from invoice (\'test1@example.com\')'));
+
+        $this->response->expects($this->once())->method('addMessage')->with(
+            "Email from IPN data ('{$data['data']['buyerFields']['buyerEmail']}') does not match with " .
+            "email from invoice ('{$invoice->getBuyer()->getEmail()}')",
+            500
+        );
+
+        $this->ipnManagement->postIpn();
+    }
+
+    public function testPostIpnNoValidatorErrorWhenEmailCasingMismatch(): void
+    {
+        $eventName = 'ivoice_confirmed';
+        $orderInvoiceId = '12';
+        $data = [
+            'data' => [
+                'orderId' => '00000012',
+                'id' => $orderInvoiceId,
+                'buyerFields' => [
+                    'buyerName' => 'test',
+                    'buyerEmail' => 'Test@exaMple.COM',
+                    'buyerAddress1' => '12 test road'
+                ],
+                'amountPaid' => 1232132
+            ],
+            'event' => ['name' => $eventName]
+        ];
+        $serializer = new Json();
+        $serializerData = $serializer->serialize($data);
+        $this->serializer->expects($this->once())->method('unserialize')->willReturn($data);
+        $this->request->expects($this->once())->method('getContent')->willReturn($serializerData);
+
+        $invoice = $this->prepareInvoice();
+        $client = $this->getMockBuilder(\BitPaySDK\Client::class)->disableOriginalConstructor()->getMock();
+        $client->expects($this->once())->method('getInvoice')->willReturn($invoice);
+        $this->client->expects($this->once())->method('initialize')->willReturn($client);
+        $this->transactionRepository->expects($this->once())->method('findBy')->willReturn([]);
+
+        $this->response->expects($this->never())->method('addMessage');
 
         $this->ipnManagement->postIpn();
     }
@@ -360,7 +427,8 @@ class IpnManagementTest extends TestCase
             $this->invoice,
             $this->request,
             $this->client,
-            $this->response
+            $this->response,
+            $this->returnHashHelper
         );
     }
 

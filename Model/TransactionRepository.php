@@ -41,6 +41,18 @@ class TransactionRepository
     }
 
     /**
+     * Find Transactions by order_id and transaction_status
+     *
+     * @param string $orderId
+     * @param string $transactionStatus
+     * @return array|null
+     */
+    public function findByOrderIdAndTransactionStatus(string $orderId, string $transactionStatus): ?array
+    {
+        return $this->resourceTransaction->findByOrderIdAndTransactionStatus($orderId, $transactionStatus);
+    }
+
+    /**
      * Update Transaction
      *
      * @param string $field
