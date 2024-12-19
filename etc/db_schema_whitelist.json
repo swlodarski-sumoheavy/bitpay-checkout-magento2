@@ -17,7 +17,8 @@
             "order_id": true,
             "expiration_time": true,
             "acceptance_window": true,
-            "invoice_id": true
+            "invoice_id": true,
+            "bitpay_token": true
         },
         "index": {
             "BITPAY_INVOICE_ORDER_ID": true

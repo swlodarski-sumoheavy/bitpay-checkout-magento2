@@ -5,20 +5,23 @@ namespace Bitpay\BPCheckout\Model;
 
 use Bitpay\BPCheckout\Api\IpnManagementInterface;
 use Bitpay\BPCheckout\Exception\IPNValidationException;
+use Bitpay\BPCheckout\Exception\HMACVerificationException;
 use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
 use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Bitpay\BPCheckout\Model\Ipn\Validator;
+use Bitpay\BPCheckout\Model\Ipn\WebhookVerifier;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\ResponseFactory;
 use Magento\Framework\DataObject;
+use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
 use Magento\Framework\Webapi\Rest\Request;
 use Magento\Framework\Webapi\Rest\Response;
 use Magento\Quote\Model\QuoteFactory;
-use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Model\OrderFactory;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -32,7 +35,7 @@ class IpnManagement implements IpnManagementInterface
     protected UrlInterface $url;
     protected Session $checkoutSession;
     protected QuoteFactory $quoteFactory;
-    protected OrderInterface $orderInterface;
+    protected OrderFactory $orderFactory;
     protected Registry $coreRegistry;
     protected Logger $logger;
     protected Config $config;
@@ -42,6 +45,25 @@ class IpnManagement implements IpnManagementInterface
     protected Request $request;
     protected Client $client;
     protected Response $response;
+
+    /**
+     * @var BitpayInvoiceRepository
+     */
+    protected BitpayInvoiceRepository $bitpayInvoiceRepository;
+
+    /**
+     * @var EncryptorInterface
+     */
+    protected EncryptorInterface $encryptor;
+
+    /**
+     * @var WebhookVerifier
+     */
+    protected WebhookVerifier $webhookVerifier;
+
+    /**
+     * @var ReturnHash
+     */
     protected ReturnHash $returnHashHelper;
 
     /**
@@ -49,7 +71,7 @@ class IpnManagement implements IpnManagementInterface
      * @param UrlInterface $url
      * @param Registry $registry
      * @param Session $checkoutSession
-     * @param OrderInterface $orderInterface
+     * @param OrderFactory $orderFactory
      * @param QuoteFactory $quoteFactory
      * @param Logger $logger
      * @param Config $config
@@ -59,6 +81,9 @@ class IpnManagement implements IpnManagementInterface
      * @param Request $request
      * @param Client $client
      * @param Response $response
+     * @param BitpayInvoiceRepository $bitpayInvoiceRepository
+     * @param EncryptorInterface $encryptor
+     * @param WebhookVerifier $webhookVerifier
      * @param ReturnHash $returnHashHelper
      * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
@@ -67,7 +92,7 @@ class IpnManagement implements IpnManagementInterface
         UrlInterface $url,
         Registry $registry,
         Session $checkoutSession,
-        OrderInterface $orderInterface,
+        OrderFactory $orderFactory,
         QuoteFactory $quoteFactory,
         Logger $logger,
         Config $config,
@@ -77,13 +102,16 @@ class IpnManagement implements IpnManagementInterface
         Request $request,
         Client $client,
         Response $response,
+        BitpayInvoiceRepository $bitpayInvoiceRepository,
+        EncryptorInterface $encryptor,
+        WebhookVerifier $webhookVerifier,
         ReturnHash $returnHashHelper
     ) {
         $this->coreRegistry = $registry;
         $this->responseFactory = $responseFactory;
         $this->url = $url;
         $this->quoteFactory = $quoteFactory;
-        $this->orderInterface = $orderInterface;
+        $this->orderFactory = $orderFactory;
         $this->checkoutSession = $checkoutSession;
         $this->logger = $logger;
         $this->config = $config;
@@ -93,6 +121,9 @@ class IpnManagement implements IpnManagementInterface
         $this->request = $request;
         $this->client = $client;
         $this->response = $response;
+        $this->bitpayInvoiceRepository = $bitpayInvoiceRepository;
+        $this->encryptor = $encryptor;
+        $this->webhookVerifier = $webhookVerifier;
         $this->returnHashHelper = $returnHashHelper;
     }
 
@@ -108,7 +139,7 @@ class IpnManagement implements IpnManagementInterface
         $response = $this->responseFactory->create();
         try {
             $orderID = $this->request->getParam('orderID', null);
-            $order = $this->orderInterface->loadByIncrementId($orderID);
+            $order = $this->orderFactory->create()->loadByIncrementId($orderID);
             $invoiceCloseHandling = $this->config->getBitpayInvoiceCloseHandling();
             if ($this->config->getBitpayCheckoutSuccess() === 'standard' && $invoiceCloseHandling === 'keep_order') {
                 $this->checkoutSession->setLastSuccessQuoteId($order->getQuoteId())
@@ -151,10 +182,22 @@ class IpnManagement implements IpnManagementInterface
     public function postIpn()
     {
         try {
-            $allData = $this->serializer->unserialize($this->request->getContent());
+            $requestBody = $this->request->getContent();
+            $allData = $this->serializer->unserialize($requestBody);
             $data = $allData['data'];
             $event = $allData['event'];
             $orderId = $data['orderId'];
+
+            $bitPayInvoiceData = $this->bitpayInvoiceRepository->getByOrderId($orderId);
+            if (!empty($bitPayInvoiceData['bitpay_token'])) {
+                $signingKey = $this->encryptor->decrypt($bitPayInvoiceData['bitpay_token']);
+                $xSignature = $this->request->getHeader('x-signature');
+
+                if (!$this->webhookVerifier->isValidHmac($signingKey, $xSignature, $requestBody)) {
+                    throw new HMACVerificationException('HMAC Verification Failed!');
+                }
+            }
+
             $orderInvoiceId = $data['id'];
             $row = $this->transactionRepository->findBy($orderId, $orderInvoiceId);
             $client = $this->client->initialize();
@@ -179,7 +222,7 @@ class IpnManagement implements IpnManagementInterface
             $invoiceStatus = $this->invoice->getBPCCheckInvoiceStatus($client, $orderInvoiceId);
             $updateWhere = ['order_id = ?' => $orderId, 'transaction_id = ?' => $orderInvoiceId];
             $this->transactionRepository->update('transaction_status', $invoiceStatus, $updateWhere);
-            $order = $this->orderInterface->loadByIncrementId($orderId);
+            $order = $this->orderFactory->create()->loadByIncrementId($orderId);
             switch ($event['name']) {
                 case Invoice::COMPLETED:
                     if ($invoiceStatus == 'complete') {

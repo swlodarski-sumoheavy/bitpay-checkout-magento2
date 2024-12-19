@@ -37,6 +37,7 @@ class BPRedirect
     protected OrderRepository $orderRepository;
     protected BitpayInvoiceRepository $bitpayInvoiceRepository;
     protected ReturnHash $returnHashHelper;
+    protected EncryptorInterface $encryptor;
 
     /**
      * @param Session $checkoutSession
@@ -53,6 +54,7 @@ class BPRedirect
      * @param OrderRepository $orderRepository
      * @param BitpayInvoiceRepository $bitpayInvoiceRepository
      * @param ReturnHash $returnHashHelper
+     * @param EncryptorInterface $encryptor
      * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
     public function __construct(
@@ -69,7 +71,8 @@ class BPRedirect
         Client $client,
         OrderRepository $orderRepository,
         BitpayInvoiceRepository $bitpayInvoiceRepository,
-        ReturnHash $returnHashHelper
+        ReturnHash $returnHashHelper,
+        EncryptorInterface $encryptor,
     ) {
         $this->checkoutSession = $checkoutSession;
         $this->orderInterface = $orderInterface;
@@ -85,6 +88,7 @@ class BPRedirect
         $this->orderRepository = $orderRepository;
         $this->bitpayInvoiceRepository = $bitpayInvoiceRepository;
         $this->returnHashHelper = $returnHashHelper;
+        $this->encryptor = $encryptor;
     }
 
     /**
@@ -150,7 +154,8 @@ class BPRedirect
                 $order->getId(),
                 $invoiceID,
                 $invoice->getExpirationTime(),
-                $invoice->getAcceptanceWindow()
+                $invoice->getAcceptanceWindow(),
+                $this->encryptor->encrypt($this->config->getToken())
             );
             $this->transactionRepository->add($incrementId, $invoiceID, 'new');
         

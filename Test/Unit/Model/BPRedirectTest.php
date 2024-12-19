@@ -21,6 +21,7 @@ use Magento\Framework\Registry;
 use Magento\Framework\UrlInterface;
 use \Magento\Framework\Controller\Result\Redirect;
 use Magento\Framework\Controller\ResultFactory;
+use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Sales\Model\Order;
 use Magento\Payment\Model\MethodInterface;
 use Magento\Sales\Model\OrderRepository;
@@ -118,6 +119,11 @@ class BPRedirectTest extends TestCase
      */
     private $returnHash;
 
+    /**
+     * @var EncryptorInterface|MockObject $encryptor
+     */
+    private $encryptor;
+
     public function setUp(): void
     {
         $this->checkoutSession = $this->getMock(Session::class);
@@ -136,6 +142,7 @@ class BPRedirectTest extends TestCase
         $this->orderRepository = $this->getMock(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->getMock(BitpayInvoiceRepository::class);
         $this->returnHash = $this->getMock(ReturnHash::class);
+        $this->encryptor = $this->getMock(EncryptorInterface::class);
         $this->bpRedirect = $this->getClass();
     }
 
@@ -175,7 +182,7 @@ class BPRedirectTest extends TestCase
         $billingAddress->expects($this->once())->method('getFirstName')->willReturn('test');
         $billingAddress->expects($this->once())->method('getLastName')->willReturn('test1');
         $order = $this->getOrder($incrementId, $payment, $billingAddress, $lastOrderId);
-        $this->prepareConfig($baseUrl, 'redirect');
+        $this->prepareConfig($baseUrl);
         $method->expects($this->once())->method('getCode')->willReturn(Config::BITPAY_PAYMENT_METHOD_NAME);
         $payment->expects($this->once())->method('getMethodInstance')->willReturn($method);
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
@@ -196,7 +203,7 @@ class BPRedirectTest extends TestCase
         $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
 
         /**
-         * @var \Magento\Framework\View\Result\Page
+         * @var \Magento\Framework\Controller\ResultInterface|MockObject
          */
         $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
 
@@ -214,7 +221,7 @@ class BPRedirectTest extends TestCase
         $this->resultFactory->expects($this->once())->method('create')->willReturn($result);
 
         /**
-         * @var \Magento\Framework\View\Result\Page
+         * @var \Magento\Framework\Controller\ResultInterface|MockObject
          */
         $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
 
@@ -242,7 +249,7 @@ class BPRedirectTest extends TestCase
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
 
         /**
-         * @var \Magento\Framework\View\Result\Page
+         * @var \Magento\Framework\Controller\ResultInterface|MockObject
          */
         $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
 
@@ -285,7 +292,7 @@ class BPRedirectTest extends TestCase
         $billingAddress->expects($this->once())->method('getFirstName')->willReturn('test');
         $billingAddress->expects($this->once())->method('getLastName')->willReturn('test1');
         $order = $this->getOrder($incrementId, $payment, $billingAddress, null);
-        $this->prepareConfig($baseUrl, 'redirect');
+        $this->prepareConfig($baseUrl);
         $method->expects($this->once())->method('getCode')->willReturn(Config::BITPAY_PAYMENT_METHOD_NAME);
         $payment->expects($this->once())->method('getMethodInstance')->willReturn($method);
         $this->order->expects($this->once())->method('load')->with($lastOrderId)->willReturn($order);
@@ -299,7 +306,7 @@ class BPRedirectTest extends TestCase
             ->willThrowException(new $exceptionType('something went wrong'));
 
         /**
-         * @var \Magento\Framework\View\Result\Page
+         * @var \Magento\Framework\Controller\ResultInterface|MockObject
          */
         $page = $this->getMock(\Magento\Framework\View\Result\Page::class);
 
@@ -337,7 +344,7 @@ class BPRedirectTest extends TestCase
         return $order;
     }
 
-    private function prepareConfig(string $baseUrl, string $ux): void
+    private function prepareConfig(string $baseUrl): void
     {
         $this->config->expects($this->once())->method('getBPCheckoutOrderStatus')->willReturn('pending');
         $this->config->expects($this->once())->method('getBaseUrl')->willReturn($baseUrl);
@@ -380,7 +387,8 @@ class BPRedirectTest extends TestCase
             $this->client,
             $this->orderRepository,
             $this->bitpayInvoiceRepository,
-            $this->returnHash
+            $this->returnHash,
+            $this->encryptor
         );
     }
 
