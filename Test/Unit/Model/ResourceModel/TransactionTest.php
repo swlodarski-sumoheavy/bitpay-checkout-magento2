@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 class TransactionTest extends TestCase
 {
     /**
-     * @var Context $context
+     * @var Context|MockObject $context
      */
     private $context;
 

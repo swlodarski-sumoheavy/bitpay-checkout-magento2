@@ -6,6 +6,7 @@ namespace Bitpay\BPCheckout\Model;
 use Bitpay\BPCheckout\Api\IpnManagementInterface;
 use Bitpay\BPCheckout\Exception\IPNValidationException;
 use Bitpay\BPCheckout\Exception\HMACVerificationException;
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Logger\Logger;
 use Bitpay\BPCheckout\Model\Ipn\BPCItem;
 use Bitpay\BPCheckout\Model\Ipn\Validator;
@@ -61,6 +62,11 @@ class IpnManagement implements IpnManagementInterface
     protected WebhookVerifier $webhookVerifier;
 
     /**
+     * @var ReturnHash
+     */
+    protected ReturnHash $returnHashHelper;
+
+    /**
      * @param ResponseFactory $responseFactory
      * @param UrlInterface $url
      * @param Registry $registry
@@ -78,6 +84,7 @@ class IpnManagement implements IpnManagementInterface
      * @param BitpayInvoiceRepository $bitpayInvoiceRepository
      * @param EncryptorInterface $encryptor
      * @param WebhookVerifier $webhookVerifier
+     * @param ReturnHash $returnHashHelper
      * @SuppressWarnings(PHPMD.ExcessiveParameterList)
      */
     public function __construct(
@@ -97,7 +104,8 @@ class IpnManagement implements IpnManagementInterface
         Response $response,
         BitpayInvoiceRepository $bitpayInvoiceRepository,
         EncryptorInterface $encryptor,
-        WebhookVerifier $webhookVerifier
+        WebhookVerifier $webhookVerifier,
+        ReturnHash $returnHashHelper
     ) {
         $this->coreRegistry = $registry;
         $this->responseFactory = $responseFactory;
@@ -116,6 +124,7 @@ class IpnManagement implements IpnManagementInterface
         $this->bitpayInvoiceRepository = $bitpayInvoiceRepository;
         $this->encryptor = $encryptor;
         $this->webhookVerifier = $webhookVerifier;
+        $this->returnHashHelper = $returnHashHelper;
     }
 
     /**
@@ -131,18 +140,30 @@ class IpnManagement implements IpnManagementInterface
         try {
             $orderID = $this->request->getParam('orderID', null);
             $order = $this->orderFactory->create()->loadByIncrementId($orderID);
-            $orderData = $order->getData();
-            $quoteID = $orderData['quote_id'];
-            $quote = $this->quoteFactory->create()->loadByIdWithoutStore($quoteID);
-            if ($quote->getId()) {
-                $quote->setIsActive(1)->setReservedOrderId(null)->save();
-                $this->checkoutSession->replaceQuote($quote);
-                $this->coreRegistry->register('isSecureArea', 'true');
-                $order->delete();
-                $this->coreRegistry->unregister('isSecureArea');
-                $response->setRedirect($redirectUrl)->sendResponse();
+            $invoiceCloseHandling = $this->config->getBitpayInvoiceCloseHandling();
+            if ($this->config->getBitpayCheckoutSuccess() === 'standard' && $invoiceCloseHandling === 'keep_order') {
+                $this->checkoutSession->setLastSuccessQuoteId($order->getQuoteId())
+                    ->setLastQuoteId($order->getQuoteId())
+                    ->setLastOrderId($order->getEntityId());
 
-                return;
+                $returnHash = $this->returnHashHelper->generate($order);
+                $redirectUrl = $this->url->getUrl(
+                    'checkout/onepage/success',
+                    ['_query' => ['return_id' => $returnHash]]
+                );
+            } else {
+                $orderData = $order->getData();
+                $quoteID = $orderData['quote_id'];
+                $quote = $this->quoteFactory->create()->loadByIdWithoutStore($quoteID);
+                if ($quote->getId()) {
+                    $quote->setIsActive(1)->setReservedOrderId(null)->save();
+                    $this->checkoutSession->replaceQuote($quote);
+                    if ($invoiceCloseHandling !== 'keep_order') {
+                        $this->coreRegistry->register('isSecureArea', 'true');
+                        $order->delete();
+                        $this->coreRegistry->unregister('isSecureArea');
+                    }
+                }
             }
 
             $response->setRedirect($redirectUrl)->sendResponse();

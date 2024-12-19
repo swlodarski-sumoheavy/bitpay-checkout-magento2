@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Bitpay\BPCheckout\Test\Unit\Model;
 
+use Bitpay\BPCheckout\Helper\ReturnHash;
 use Bitpay\BPCheckout\Model\BitpayInvoiceRepository;
 use Bitpay\BPCheckout\Model\BPRedirect;
 use Bitpay\BPCheckout\Logger\Logger;
@@ -114,6 +115,11 @@ class BPRedirectTest extends TestCase
     private $resultFactory;
 
     /**
+     * @var ReturnHash|MockObject $returnHash
+     */
+    private $returnHash;
+
+    /**
      * @var EncryptorInterface|MockObject $encryptor
      */
     private $encryptor;
@@ -135,6 +141,7 @@ class BPRedirectTest extends TestCase
         $this->resultFactory = $this->getMock(ResultFactory::class);
         $this->orderRepository = $this->getMock(OrderRepository::class);
         $this->bitpayInvoiceRepository = $this->getMock(BitpayInvoiceRepository::class);
+        $this->returnHash = $this->getMock(ReturnHash::class);
         $this->encryptor = $this->getMock(EncryptorInterface::class);
         $this->bpRedirect = $this->getClass();
     }
@@ -205,7 +212,6 @@ class BPRedirectTest extends TestCase
 
     public function testExecuteNoOrderId(): void
     {
-        $response = $this->getMock(\Magento\Framework\HTTP\PhpEnvironment\Response::class);
         $this->checkoutSession->expects($this->once())
             ->method('getData')
             ->with('last_order_id')
@@ -381,6 +387,7 @@ class BPRedirectTest extends TestCase
             $this->client,
             $this->orderRepository,
             $this->bitpayInvoiceRepository,
+            $this->returnHash,
             $this->encryptor
         );
     }

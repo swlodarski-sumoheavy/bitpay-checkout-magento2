@@ -20,6 +20,7 @@ class Config
     public const BPCHECKOUT_ORDER_STATUS = 'payment/bpcheckout/order_status';
     public const BITPAY_UX = 'payment/bpcheckout/bitpay_ux';
     public const BITPAY_CHECKOUT_SUCCESS = 'payment/bpcheckout/bitpay_checkout_success';
+    public const BITPAY_INVOICE_CLOSE_HANDLING = 'payment/bpcheckout/bitpay_invoice_close_handling';
     public const BITPAY_MERCHANT_TOKEN_DATA = 'bitpay_merchant_facade/authenticate/token_data';
     public const BITPAY_MERCHANT_PRIVATE_KEY_PATH = 'bitpay_merchant_facade/authenticate/private_key_path';
     public const BITPAY_MERCHANT_PASSWORD = 'bitpay_merchant_facade/authenticate/password';
@@ -108,6 +109,16 @@ class Config
     public function getBitpayCheckoutSuccess():? string
     {
         return $this->scopeConfig->getValue(self::BITPAY_CHECKOUT_SUCCESS, ScopeInterface::SCOPE_STORE);
+    }
+
+    /**
+     * Get BitPay InvoiceCloseHandling
+     *
+     * @return string|null
+     */
+    public function getBitpayInvoiceCloseHandling():? string
+    {
+        return $this->scopeConfig->getValue(self::BITPAY_INVOICE_CLOSE_HANDLING, ScopeInterface::SCOPE_STORE);
     }
 
     /**

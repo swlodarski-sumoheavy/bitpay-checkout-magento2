@@ -15,7 +15,7 @@ class Validator
     public function __construct(\BitPaySDK\Model\Invoice\Invoice $invoice, array $ipnData)
     {
         $name = $ipnData['buyerFields']['buyerName'];
-        $email = $ipnData['buyerFields']['buyerEmail'];
+        $email = strtolower($ipnData['buyerFields']['buyerEmail']);
         $address1 = $ipnData['buyerFields']['buyerAddress1'] ?? null;
         $address2 = $ipnData['buyerFields']['buyerAddress2'] ?? null;
         $amountPaid = $ipnData['amountPaid'];
@@ -25,8 +25,8 @@ class Validator
             $this->errors[] = "Name from IPN data ('{$name}') does not match with " .
                 "name from invoice ('{$invoiceBuyerName}')";
         }
-
-        if ($email !== $invoiceBuyerEmail = $invoiceBuyer->getEmail()) {
+        $invoiceBuyerEmail = strtolower($invoiceBuyer->getEmail());
+        if ($email !== $invoiceBuyerEmail) {
             $this->errors[] = "Email from IPN data ('{$email}') does not match with " .
                 "email from invoice ('{$invoiceBuyerEmail}')";
         }
