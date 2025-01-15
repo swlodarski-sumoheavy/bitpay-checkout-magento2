@@ -1,0 +1,22 @@
+<?php
+/** @var \Bitpay\BPCheckout\Block\Adminhtml\System\Config\Form\Field\DownloadSupportPackage $block */
+/** @var \Magento\Framework\Escaper $escaper */
+?>
+<div data-bind="scope: 'bitpay-download-support-package'" class="scalable">
+    <!-- ko template: getTemplate() --><!-- /ko -->
+</div>
+<script type="text/x-magento-init">
+    {
+        "*": {
+            "Magento_Ui/js/core/app": {
+                "components": {
+                    "bitpay-download-support-package": {
+                        "component": "Bitpay_BPCheckout/js/download_support_package",
+                        "buttonLabel": "<?= $escaper->escapeHtml($block->getButtonLabel()) ?>",
+                        "url": "<?= $escaper->escapeJs($escaper->escapeUrl($block->getAjaxUrl())) ?>"
+                    }
+                }
+            }
+        }
+    }
+</script>
