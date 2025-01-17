@@ -3,7 +3,6 @@
  * See COPYING.txt for license details.
  */
 /*browser:true*/
-/*global define*/
 define(
     [
         'uiComponent',
@@ -18,6 +17,7 @@ define(
             type: 'bpcheckout',
             component: 'Bitpay_BPCheckout/js/view/payment/method-renderer/bpcheckout-method'
         });
+
         /** Add view logic here if needed */
         return Component.extend({});
     }
