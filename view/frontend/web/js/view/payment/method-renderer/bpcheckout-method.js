@@ -3,7 +3,6 @@
  * See COPYING.txt for license details.
  */
 /*browser:true*/
-/*global define*/
 define(
     [
         'Magento_Checkout/js/view/payment/default'
@@ -17,7 +16,7 @@ define(
             },
 
             /** Returns send check to info */
-            getMailingAddress: function() {
+            getMailingAddress: function () {
                 return window.checkoutConfig.payment.checkmo.mailingAddress;
             },
 
