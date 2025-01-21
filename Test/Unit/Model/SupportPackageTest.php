@@ -184,9 +184,21 @@ class SupportPackageTest extends TestCase
                 [DirectoryList::LOG, '/log']
             ]));
 
-        $this->fileDriverMock->method('isExists')
-            ->with($logPath)
-            ->willReturn(true);
+        $invokedCount = $this->exactly(2);
+        $this->fileDriverMock->expects($invokedCount)
+            ->method('isExists')
+            ->willReturnCallback(function ($parameters) use ($invokedCount, $tmpPath, $logPath) {
+                if ($invokedCount->getInvocationCount() === 1) {
+                    $this->assertSame($tmpPath . '/', $parameters);
+
+                    return true;
+                }
+
+                if ($invokedCount->getInvocationCount() === 2) {
+                    $this->assertSame($logPath, $parameters);
+                    return true;
+                }
+            });
 
         $this->jsonSerializerMock->method('serialize')
             ->willReturn('{"key":"value"}');
@@ -215,7 +227,7 @@ class SupportPackageTest extends TestCase
 
         $this->zipArchiveMock->expects($this->once())
             ->method('open')
-            ->with($archivePath, \ZipArchive::CREATE)
+            ->with($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE)
             ->willReturn(true);
         $this->zipArchiveMock->expects($this->once())
             ->method('addFromString')

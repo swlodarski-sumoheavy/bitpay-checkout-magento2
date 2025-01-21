@@ -130,20 +130,24 @@ class SupportPackage
      */
     public function prepareDownloadArchive()
     {
-        $path = $this->directoryList->getPath(DirectoryList::TMP) . '/bitpay-support.zip';
+        $zipDir = $this->directoryList->getPath(DirectoryList::TMP) . DIRECTORY_SEPARATOR;
+        if (!$this->fileDriver->isExists($zipDir)) {
+            $this->fileDriver->createDirectory($zipDir);
+        }
+        $zipPath = $zipDir . 'bitpay-support.zip';
 
-        $this->zipArchive->open($path, \ZipArchive::CREATE);
+        $this->zipArchive->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         $this->zipArchive->addFromString(
             'bitpay-support.json',
             $this->jsonSerializer->serialize($this->prepareSupportDetails())
         );
-        $logPath = $this->directoryList->getPath(DirectoryList::LOG) . '/bitpay.log';
+        $logPath = $this->directoryList->getPath(DirectoryList::LOG) . DIRECTORY_SEPARATOR . 'bitpay.log';
         if ($this->fileDriver->isExists($logPath)) {
             $this->zipArchive->addFile($logPath, 'bitpay.log');
         }
         $this->zipArchive->close();
 
-        return $path;
+        return $zipPath;
     }
 
     /**
