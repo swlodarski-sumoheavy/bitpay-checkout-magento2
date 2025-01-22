@@ -11,6 +11,7 @@ use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Driver\File;
 use Magento\Framework\Module\Dir as ModuleDir;
 use Magento\Framework\Module\FullModuleList;
+use Magento\Framework\Module\PackageInfo;
 use Magento\Framework\Module\ResourceInterface;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
@@ -35,6 +36,11 @@ class SupportPackageTest extends TestCase
      * @var ResourceInterface|MockObject
      */
     private $moduleResourceMock;
+
+    /**
+     * @var PackageInfo|MockObject
+     */
+    private $packageInfoMock;
 
     /**
      * @var DeploymentConfig|MockObject
@@ -97,6 +103,10 @@ class SupportPackageTest extends TestCase
          */
         $this->moduleResourceMock = $this->createMock(ResourceInterface::class);
         /**
+         * @var PackageInfo
+         */
+        $this->packageInfoMock = $this->createMock(PackageInfo::class);
+        /**
          * @var DeploymentConfig
          */
         $this->deploymentConfigMock = $this->createMock(DeploymentConfig::class);
@@ -140,6 +150,7 @@ class SupportPackageTest extends TestCase
         $this->supportPackage = new SupportPackage(
             $this->fullModuleListMock,
             $this->moduleResourceMock,
+            $this->packageInfoMock,
             $this->deploymentConfigMock,
             $this->resourceConnectionMock,
             $this->xmlParserMock,
@@ -289,7 +300,7 @@ class SupportPackageTest extends TestCase
 
     public function testGetBitpayModuleVersion()
     {
-        $this->moduleResourceMock->method('getDbVersion')
+        $this->packageInfoMock->method('getVersion')
             ->with('Bitpay_BPCheckout')
             ->willReturn('1.0.0');
 
