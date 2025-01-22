@@ -10,6 +10,7 @@ use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem\Driver\File;
 use Magento\Framework\Module\Dir as ModuleDir;
 use Magento\Framework\Module\FullModuleList;
+use Magento\Framework\Module\PackageInfo;
 use Magento\Framework\Module\ResourceInterface;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
@@ -30,6 +31,11 @@ class SupportPackage
      * @var ResourceInterface
      */
     private $moduleResource;
+
+    /**
+     * @var PackageInfo
+     */
+    private $packageInfo;
 
     /**
      * @var DeploymentConfig
@@ -86,6 +92,7 @@ class SupportPackage
      *
      * @param FullModuleList $fullModuleList
      * @param ResourceInterface $moduleResource
+     * @param PackageInfo $packageInfo
      * @param DeploymentConfig $deploymentConfig
      * @param ResourceConnection $resourceConnection
      * @param XmlParser $xmlParser
@@ -100,6 +107,7 @@ class SupportPackage
     public function __construct(
         FullModuleList $fullModuleList,
         ResourceInterface $moduleResource,
+        PackageInfo $packageInfo,
         DeploymentConfig $deploymentConfig,
         ResourceConnection $resourceConnection,
         XmlParser $xmlParser,
@@ -112,6 +120,7 @@ class SupportPackage
         ZipArchive $zipArchive,
     ) {
         $this->moduleResource = $moduleResource;
+        $this->packageInfo = $packageInfo;
         $this->fullModuleList = $fullModuleList;
         $this->deploymentConfig = $deploymentConfig;
         $this->resourceConnection = $resourceConnection;
@@ -127,6 +136,8 @@ class SupportPackage
 
     /**
      * Prepares the support download archive
+     *
+     * @return string
      */
     public function prepareDownloadArchive()
     {
@@ -169,24 +180,36 @@ class SupportPackage
 
     /**
      * Get the Bitpay module version
+     *
+     * @return string
      */
     public function getBitpayModuleVersion()
     {
-        return $this->moduleResource->getDbVersion('Bitpay_BPCheckout');
+        return $this->getModuleVersion('Bitpay_BPCheckout');
     }
 
     /**
      * Get the installed modules list
+     *
+     * @return array
      */
     public function getModuleList()
     {
         $modules = [];
         $allModules = $this->fullModuleList->getAll();
         foreach ($allModules as $module) {
+            $schemaVersion = $this->moduleResource->getDbVersion($module['name']);
+            $dataVersion = $this->moduleResource->getDataVersion($module['name']);
+            if (empty($module['setup_version'])) {
+                $moduleVersion = $this->getModuleVersion($module['name']);
+                $schemaVersion = $moduleVersion;
+                $dataVersion = $moduleVersion;
+            }
+
             $modules[] = [
                 'name' => $module['name'],
-                'schema_version' => $this->moduleResource->getDbVersion($module['name']) ?: 'N/A',
-                'data_version' => $this->moduleResource->getDataVersion($module['name']) ?: 'N/A',
+                'schema_version' => $schemaVersion ?: 'N/A',
+                'data_version' => $dataVersion ?: 'N/A',
             ];
         }
 
@@ -195,6 +218,8 @@ class SupportPackage
 
     /**
      * Get the database details
+     *
+     * @return array
      */
     public function getDbDetails()
     {
@@ -278,6 +303,8 @@ class SupportPackage
 
     /**
      * Get Magento details
+     *
+     * @return array
      */
     public function getMagentoDetails()
     {
@@ -289,6 +316,8 @@ class SupportPackage
 
     /**
      * Get server details
+     *
+     * @return array
      */
     public function getServerDetails()
     {
@@ -306,6 +335,8 @@ class SupportPackage
 
     /**
      * Get PHP details
+     *
+     * @return array
      */
     public function getPhpDetails()
     {
@@ -323,5 +354,16 @@ class SupportPackage
             'mbstring_enabled' => extension_loaded('mbstring'),
             'extensions' => get_loaded_extensions(),
         ];
+    }
+
+    /**
+     * Get the version of a module
+     *
+     * @param string $moduleName
+     * @return string
+     */
+    protected function getModuleVersion(string $moduleName)
+    {
+        return $this->packageInfo->getVersion($moduleName);
     }
 }
