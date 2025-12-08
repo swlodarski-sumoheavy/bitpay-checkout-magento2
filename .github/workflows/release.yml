@@ -100,7 +100,7 @@ jobs:
             --notes "${{ env.RELEASE_NOTES }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
   readme-changelog:
     name: Publish changelog to Readme
     needs: release
@@ -133,7 +133,7 @@ jobs:
         env:
           README_API_KEY: ${{ secrets.README_API_KEY }}
         run: |
-          jq -n --arg title "BitPay PHP SDK v${{ steps.release_data.outputs.title }}" \
+          jq -n --arg title "BitPay Checkout module for Magento 2 v${{ steps.release_data.outputs.title }}" \
                 --arg body "${{ steps.release_data.outputs.body }}" \
                 '{
                   title: $title,
