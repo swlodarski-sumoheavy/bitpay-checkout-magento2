@@ -115,23 +115,32 @@ jobs:
           prev_tag="${tags[1]}"
 
           if [ -z "$prev_tag" ]; then
-            echo "Warning: No previous tag found. Skipping full changelog link."
+            echo "Warning: No previous tag found. Using all commits."
             changelog=""
-            prev_tag_date=""
+            commit_range="$new_tag"
           else
             changelog="**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/$prev_tag...$new_tag"
-            prev_tag_date=$(git log -1 --format=%aI "$prev_tag")
+            commit_range="$prev_tag..$new_tag"
           fi
 
-          gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt
-
-          # Get PRs merged since the previous tag (or all if no previous tag)
-          if [ -z "$prev_tag_date" ]; then
-            prs=$(gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt | jq '[.[] | select(.mergedAt != null) | .title]')
-          else
-            prs=$(gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt | jq --arg since "$prev_tag_date" '[.[] | select(.mergedAt != null and .mergedAt >= $since) | .title]')
+          # Get PR numbers from commits between tags
+          pr_numbers=$(git log "$commit_range" --merges --oneline --pretty=format:'%s' | grep -oE '#[0-9]+' | sed 's/#//' | sort -u)
+          
+          # Fetch PR titles for each PR number
+          joined=""
+          if [ -n "$pr_numbers" ]; then
+            while IFS= read -r pr_num; do
+              if [ -n "$pr_num" ]; then
+                pr_title=$(gh pr view "$pr_num" --json title --jq .title 2>/dev/null || echo "PR #$pr_num")
+                joined="${joined}* ${pr_title}"$'\n'
+              fi
+            done <<< "$pr_numbers"
           fi
-          joined=$(echo "$prs" | jq -r '.[]' | sed 's/^/* /')
+          
+          # Fallback: if no PRs found, list commits
+          if [ -z "$joined" ]; then
+            joined=$(git log "$commit_range" --oneline --pretty=format:'* %s' | grep -v '^* Merge')
+          fi
 
           echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
           echo "${OVERVIEW_INPUT}" >> $GITHUB_ENV
