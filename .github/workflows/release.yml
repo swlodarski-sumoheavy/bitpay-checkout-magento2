@@ -123,6 +123,8 @@ jobs:
             prev_tag_date=$(git log -1 --format=%aI "$prev_tag")
           fi
 
+          gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt
+
           # Get PRs merged since the previous tag (or all if no previous tag)
           if [ -z "$prev_tag_date" ]; then
             prs=$(gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt | jq '[.[] | select(.mergedAt != null) | .title]')
