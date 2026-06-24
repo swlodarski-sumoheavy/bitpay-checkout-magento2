@@ -3,7 +3,7 @@
   "description": "",
   "type": "magento2-module",
   "license": "mit",
-  "version": "10.2.6",
+  "version": "10.2.7",
   "authors": [
     {
       "email": "integrations@bitpay.com",
