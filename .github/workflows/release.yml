@@ -125,9 +125,9 @@ jobs:
 
           # Get PRs merged since the previous tag (or all if no previous tag)
           if [ -z "$prev_tag_date" ]; then
-            prs=$(gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt --jq '[.[] | select(.mergedAt != null) | .title]')
+            prs=$(gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt | jq '[.[] | select(.mergedAt != null) | .title]')
           else
-            prs=$(gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt --jq --arg since "$prev_tag_date" '[.[] | select(.mergedAt != null and .mergedAt >= $since) | .title]')
+            prs=$(gh pr list --state merged --base "${BRANCH_INPUT}" --limit 100 --json title,mergedAt | jq --arg since "$prev_tag_date" '[.[] | select(.mergedAt != null and .mergedAt >= $since) | .title]')
           fi
           joined=$(echo "$prs" | jq -r '.[]' | sed 's/^/* /')
 
